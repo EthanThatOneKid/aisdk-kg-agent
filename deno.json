@@ -1,0 +1,10 @@
+{
+  "lock": false,
+  "tasks": {
+    "start": "deno run -A --env main.ts"
+  },
+  "imports": {
+    "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.14",
+    "ai": "npm:ai@^5.0.47"
+  }
+}
