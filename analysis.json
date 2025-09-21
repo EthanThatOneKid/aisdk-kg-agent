@@ -1,0 +1,120 @@
+[
+  {
+    "summary": {
+      "totalEntities": 3,
+      "totalRelationships": 1,
+      "totalLocations": 1
+    },
+    "entities": [
+      {
+        "id": "entity_1",
+        "text": "I",
+        "type": "PERSON",
+        "category": "pronoun",
+        "properties": {
+          "person": "first_person",
+          "number": "singular"
+        },
+        "confidence": 1,
+        "source": "pronoun",
+        "range": {
+          "start": 0,
+          "end": 1
+        }
+      },
+      {
+        "id": "entity_2",
+        "text": "Kyle",
+        "type": "PERSON",
+        "category": "noun",
+        "properties": {
+          "isPlural": false,
+          "determiner": "",
+          "root": "Kyle",
+          "originalText": "Kyle"
+        },
+        "confidence": 0.9,
+        "source": "noun",
+        "range": {
+          "start": 14,
+          "end": 18
+        }
+      },
+      {
+        "id": "entity_3",
+        "text": "the Lost Bean cafe yesterday.",
+        "type": "ESTABLISHMENT",
+        "category": "noun",
+        "properties": {
+          "isPlural": false,
+          "determiner": "the",
+          "root": "Lost Bean cafe",
+          "originalText": "the Lost Bean cafe yesterday."
+        },
+        "confidence": 0.8,
+        "source": "noun",
+        "range": {
+          "start": 22,
+          "end": 51
+        }
+      }
+    ],
+    "relationships": [
+      {
+        "id": "rel_1",
+        "type": "SOCIAL_INTERACTION",
+        "subject": "entity_1",
+        "subjectText": "I",
+        "predicate": "met up",
+        "object": "entity_2",
+        "objectText": "Kyle",
+        "properties": {
+          "tense": "PastTense",
+          "form": "simple-past",
+          "infinitive": "meet up"
+        },
+        "confidence": 0.9
+      }
+    ],
+    "locations": [
+      {
+        "id": "location_1",
+        "text": "the Lost Bean cafe yesterday.",
+        "type": "ESTABLISHMENT",
+        "properties": {
+          "category": "cafe",
+          "determiner": "the",
+          "root": "Lost Bean cafe",
+          "confidence": 0.8
+        },
+        "confidence": 0.8
+      }
+    ],
+    "analysis": {
+      "mainAction": "met up",
+      "temporalContext": [
+        {
+          "text": "the Lost Bean cafe yesterday.",
+          "type": "TEMPORAL",
+          "properties": {
+            "root": "Lost Bean cafe"
+          }
+        }
+      ],
+      "spatialContext": [
+        {
+          "id": "location_1",
+          "text": "the Lost Bean cafe yesterday.",
+          "type": "ESTABLISHMENT",
+          "properties": {
+            "category": "cafe",
+            "determiner": "the",
+            "root": "Lost Bean cafe",
+            "confidence": 0.8
+          },
+          "confidence": 0.8
+        }
+      ]
+    }
+  }
+]

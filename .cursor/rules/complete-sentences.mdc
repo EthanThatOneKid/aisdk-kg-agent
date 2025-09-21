@@ -1,0 +1,96 @@
+---
+globs: *.ts,*.tsx,*.js,*.jsx,*.py,*.java,*.cs,*.cpp,*.c,*.h,*.go,*.rs,*.php,*.rb,*.swift,*.kt,*.scala,*.clj,*.hs,*.ml,*.fs,*.vb,*.sql,*.sh,*.bash,*.ps1,*.yaml,*.yml,*.json,*.xml,*.html,*.css,*.scss,*.sass,*.less,*.md,*.rst,*.txt
+description: Code comment style guidelines for complete sentences with proper punctuation
+---
+
+# Code Comment Style Guidelines
+
+## Complete Sentences with Proper Punctuation
+
+When writing comments in code, always use complete sentences with proper
+punctuation.
+
+### ✅ Good Examples
+
+```typescript
+// This function calculates the total price including tax.
+// The tax rate is applied to the base price before adding shipping costs.
+function calculateTotal(basePrice: number, taxRate: number): number {
+  // First, we apply the tax to the base price.
+  const priceWithTax = basePrice * (1 + taxRate);
+
+  // Then we add the shipping cost to get the final total.
+  return priceWithTax + SHIPPING_COST;
+}
+```
+
+```typescript
+// Listen to ADD_QUAD events to track new quads being added.
+store.addEventListener(SyncStoreEvent.ADD_QUAD, (event: Event) => {
+  const customEvent = event as CustomEvent;
+  const quad = customEvent.detail[0] as Quad;
+  updateSubjectCounts([quad], 1);
+});
+```
+
+### ❌ Bad Examples
+
+```typescript
+// calculates total price
+// tax rate applied
+function calculateTotal(basePrice: number, taxRate: number): number {
+  // apply tax
+  const priceWithTax = basePrice * (1 + taxRate);
+
+  // add shipping
+  return priceWithTax + SHIPPING_COST;
+}
+```
+
+```typescript
+// listen to ADD_QUAD events
+store.addEventListener(SyncStoreEvent.ADD_QUAD, (event: Event) => {
+  const customEvent = event as CustomEvent;
+  const quad = customEvent.detail[0] as Quad;
+  updateSubjectCounts([quad], 1);
+});
+```
+
+## Guidelines
+
+1. **Complete Sentences**: Write comments as full sentences with subject and
+   verb.
+2. **Proper Punctuation**: End sentences with periods, question marks, or
+   exclamation points as appropriate.
+3. **Capitalization**: Start sentences with capital letters.
+4. **Clarity**: Make comments clear and descriptive, not just brief notes.
+5. **Context**: Provide enough context for someone reading the code later to
+   understand the purpose.
+
+## Exceptions
+
+- Single-line variable declarations where a brief phrase is acceptable:
+  ```typescript
+  const MAX_RETRIES = 3; // Maximum number of retry attempts
+  ```
+
+- TODO comments can be brief but should still be clear:
+  ```typescript
+  // TODO: Implement error handling for network failures.
+  ```
+
+- Inline comments for complex expressions can be brief:
+  ```typescript
+  const result = a * b + c; // Apply formula: base * multiplier + offset
+  ```
+
+## Benefits
+
+- **Readability**: Complete sentences are easier to read and understand.
+- **Professionalism**: Proper punctuation shows attention to detail.
+- **Maintainability**: Clear comments help future developers understand the
+  code.
+- **Consistency**: Establishes a standard for all team members to follow.---
+  description: globs: alwaysApply: true
+
+---

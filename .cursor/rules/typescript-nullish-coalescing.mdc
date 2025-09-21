@@ -1,0 +1,67 @@
+---
+globs: *.ts,*.tsx
+description: TypeScript nullish coalescing operator preference
+---
+
+# TypeScript Nullish Coalescing Operator
+
+In TypeScript files, prefer the nullish coalescing operator (`??`) over the
+logical OR operator (`||`) when providing default values.
+
+## Why Use `??` Instead of `||`
+
+The nullish coalescing operator (`??`) only checks for `null` or `undefined`,
+while the logical OR operator (`||`) checks for all falsy values including:
+
+- `false`
+- `0`
+- `""` (empty string)
+- `NaN`
+
+## Examples
+
+### ✅ Good - Using `??`
+
+```typescript
+// Only provides default when value is null or undefined
+const name = user.name ?? "Anonymous";
+const count = items.length ?? 0;
+const message = input ?? "";
+const isActive = status ?? false;
+```
+
+### ❌ Avoid - Using `||`
+
+```typescript
+// This can cause unexpected behavior with falsy values
+const name = user.name || "Anonymous"; // If name is "", it becomes "Anonymous"
+const count = items.length || 0; // If length is 0, it becomes 0 (unintended)
+const message = input || ""; // If input is "", it becomes "" (unintended)
+const isActive = status || false; // If status is false, it becomes false (unintended)
+```
+
+## When to Use `||`
+
+Only use `||` when you specifically want to check for all falsy values:
+
+```typescript
+// When you want to treat empty strings, 0, false as "no value"
+const displayName = user.name || "No name provided";
+const retryCount = attempts || 1; // Only retry if attempts is falsy
+```
+
+## Exception
+
+When working with boolean values where you want to preserve `false` as a valid
+value, use `||`:
+
+```typescript
+// This is correct - we want to default to true only if the value is falsy
+const shouldShow = config.showModal || true;
+```
+
+## Summary
+
+- Use `??` for default values when you only want to handle `null`/`undefined`
+- Use `||` when you want to handle all falsy values
+- Be especially careful with numbers, booleans, and empty strings
