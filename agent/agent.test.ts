@@ -9,10 +9,10 @@ class MockAgent {
     this.responses = responses;
   }
 
-  async generate({ prompt }: { prompt: string }): Promise<{ text: string }> {
+  generate({ prompt }: { prompt: string }): Promise<{ text: string }> {
     this.prompts.push(prompt);
     const text = this.responses.shift() ?? "";
-    return { text };
+    return Promise.resolve({ text });
   }
 }
 

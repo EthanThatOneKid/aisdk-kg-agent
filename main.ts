@@ -2,21 +2,21 @@ import {
   createOramaTripleStore,
   OramaSearchService,
 } from "#/search/orama-search.ts";
-import { NerAgent } from "./agents/ner/agent.ts";
+import { HybridNerAgent } from "./agents/ner/hybrid-agent.ts";
 import { generateValidTurtle, turtleAgent } from "./agents/turtle/agent.ts";
 
 if (import.meta.main) {
   try {
     const orama = createOramaTripleStore();
     const searchService = new OramaSearchService(orama);
-    const nerAgent = new NerAgent(searchService);
+    const nerAgent = new HybridNerAgent(searchService);
 
     console.log("Processing text...");
 
     const inputText =
       "I met up with Kyle at the Lost Bean cafe yesterday in the morning.";
 
-    // Process named entities
+    // Process named entities with hybrid Compromise + AI analysis
     const nerResult = await nerAgent.processText(inputText);
     nerAgent.logResults(nerResult);
 

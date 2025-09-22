@@ -9,14 +9,14 @@ class MockAgent {
     this.responses = responses;
   }
 
-  async generate(
+  generate(
     { messages }: {
       messages: Array<{ role: "user" | "assistant"; content: string }>;
     },
   ): Promise<{ text: string }> {
     this.prompts.push(...messages);
     const text = this.responses.shift() ?? "";
-    return { text };
+    return Promise.resolve({ text });
   }
 }
 
