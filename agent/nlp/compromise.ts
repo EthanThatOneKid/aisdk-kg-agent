@@ -1,11 +1,7 @@
 import { default as nlp } from "compromise";
-import { default as pluginDates } from "compromise-dates";
-
-nlp.extend(pluginDates);
 
 export interface NlpAnalysis {
   entities: NlpEntity[];
-  dates: NlpDate[];
 }
 
 export interface NlpEntity {
@@ -21,23 +17,6 @@ export interface NlpNoun {
   adjectives: string[];
   isPlural: boolean;
   isSubordinate: boolean;
-}
-
-export interface NlpDate {
-  text: string;
-  start: string;
-  end: string;
-  timezone: string;
-  duration: NlpDateDuration;
-  offset: NlpOffset;
-}
-
-export interface NlpDateDuration {
-  years: number;
-  months: number;
-  days: number;
-  hours: number;
-  minutes: number;
 }
 
 export interface NlpOffset {
@@ -61,7 +40,6 @@ export function analyzeContent(content: string) {
 function analyzeClause(clause: any): NlpAnalysis {
   return {
     entities: analyzeEntities(clause),
-    dates: analyzeDates(clause),
   };
 }
 
@@ -110,21 +88,6 @@ function analyzeEntities(clause: any): NlpEntity[] {
   }
 
   return entities.toSorted((a, b) => a.offset.start - b.offset.start);
-}
-
-// deno-lint-ignore no-explicit-any
-export function analyzeDates(clause: any): NlpDate[] {
-  return clause.dates()
-    .json({ offset: true, unique: true })
-    // deno-lint-ignore no-explicit-any
-    .map((date: any): NlpDate => ({
-      text: date.text,
-      start: date.dates.start,
-      end: date.dates.end,
-      timezone: date.dates.timezone,
-      duration: date.dates.duration,
-      offset: date.offset,
-    }));
 }
 
 function collectTags(terms: Array<{ tags: string[] }>): string[] {

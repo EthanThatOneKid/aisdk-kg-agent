@@ -16,7 +16,6 @@
     "@types/node": "npm:@types/node@^24.5.2",
     "ai": "npm:ai@^5.0.48",
     "compromise": "npm:compromise@^14.14.4",
-    "compromise-dates": "npm:compromise-dates@^3.7.1",
     "n3": "npm:n3@^1.26.0",
     "zod": "npm:zod@^4.1.11"
   }

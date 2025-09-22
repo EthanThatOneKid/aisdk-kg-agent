@@ -8,8 +8,7 @@ Deno.test("analyzeContent snapshot test", () => {
   assertEquals(analysis.length, 1);
 
   const [analyzedClause] = analysis;
-  assertEquals(analyzedClause.entities.length, 4);
-  assertEquals(analyzedClause.dates.length, 1);
+  assertEquals(analyzedClause.entities.length, 5);
 
   // Should detect multiple interpretations of entities
   const lostBeanEntities = analyzedClause.entities.filter((e) =>

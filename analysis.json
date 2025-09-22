@@ -72,25 +72,25 @@
           "start": 26,
           "length": 14
         }
-      }
-    ],
-    "dates": [
+      },
       {
-        "text": "yesterday in the morning.",
-        "start": "2001-03-23T09:00:00.000Z",
-        "end": "2001-03-23T23:59:59.999Z",
-        "timezone": "Etc/Utc",
-        "duration": {
-          "years": 0,
-          "months": 0,
-          "days": 0,
-          "hours": 15,
-          "minutes": 0
-        },
+        "text": "the morning.",
+        "tags": [
+          "Determiner",
+          "Noun",
+          "Singular"
+        ],
         "offset": {
-          "index": 10,
-          "start": 41,
-          "length": 25
+          "index": 12,
+          "start": 54,
+          "length": 12
+        },
+        "noun": {
+          "root": "morning",
+          "determiner": "the",
+          "adjectives": [],
+          "isPlural": false,
+          "isSubordinate": true
         }
       }
     ]
