@@ -1,120 +1,98 @@
 [
   {
-    "summary": {
-      "totalEntities": 3,
-      "totalRelationships": 1,
-      "totalLocations": 1
-    },
     "entities": [
       {
-        "id": "entity_1",
         "text": "I",
-        "type": "PERSON",
-        "category": "pronoun",
-        "properties": {
-          "person": "first_person",
-          "number": "singular"
-        },
-        "confidence": 1,
-        "source": "pronoun",
-        "range": {
+        "tags": [
+          "Noun",
+          "Pronoun"
+        ],
+        "offset": {
+          "index": 0,
           "start": 0,
-          "end": 1
-        }
-      },
-      {
-        "id": "entity_2",
-        "text": "Kyle",
-        "type": "PERSON",
-        "category": "noun",
-        "properties": {
-          "isPlural": false,
+          "length": 1
+        },
+        "noun": {
+          "root": "I",
           "determiner": "",
-          "root": "Kyle",
-          "originalText": "Kyle"
-        },
-        "confidence": 0.9,
-        "source": "noun",
-        "range": {
-          "start": 14,
-          "end": 18
+          "adjectives": [],
+          "isPlural": false,
+          "isSubordinate": false
         }
       },
       {
-        "id": "entity_3",
-        "text": "the Lost Bean cafe yesterday.",
-        "type": "ESTABLISHMENT",
-        "category": "noun",
-        "properties": {
-          "isPlural": false,
-          "determiner": "the",
-          "root": "Lost Bean cafe",
-          "originalText": "the Lost Bean cafe yesterday."
-        },
-        "confidence": 0.8,
-        "source": "noun",
-        "range": {
+        "text": "Kyle",
+        "tags": [
+          "Noun",
+          "Singular",
+          "Person",
+          "FirstName",
+          "ProperNoun",
+          "MaleName"
+        ],
+        "offset": {
+          "index": 4,
+          "start": 14,
+          "length": 4
+        }
+      },
+      {
+        "text": "the Lost Bean cafe yesterday",
+        "tags": [
+          "Determiner",
+          "ProperNoun",
+          "Noun",
+          "Organization",
+          "Singular",
+          "Date"
+        ],
+        "offset": {
+          "index": 6,
           "start": 22,
-          "end": 51
-        }
-      }
-    ],
-    "relationships": [
-      {
-        "id": "rel_1",
-        "type": "SOCIAL_INTERACTION",
-        "subject": "entity_1",
-        "subjectText": "I",
-        "predicate": "met up",
-        "object": "entity_2",
-        "objectText": "Kyle",
-        "properties": {
-          "tense": "PastTense",
-          "form": "simple-past",
-          "infinitive": "meet up"
+          "length": 28
         },
-        "confidence": 0.9
-      }
-    ],
-    "locations": [
-      {
-        "id": "location_1",
-        "text": "the Lost Bean cafe yesterday.",
-        "type": "ESTABLISHMENT",
-        "properties": {
-          "category": "cafe",
-          "determiner": "the",
+        "noun": {
           "root": "Lost Bean cafe",
-          "confidence": 0.8
-        },
-        "confidence": 0.8
+          "determiner": "the",
+          "adjectives": [],
+          "isPlural": false,
+          "isSubordinate": true
+        }
+      },
+      {
+        "text": "Lost Bean cafe",
+        "tags": [
+          "ProperNoun",
+          "Noun",
+          "Organization",
+          "Singular"
+        ],
+        "offset": {
+          "index": 7,
+          "start": 26,
+          "length": 14
+        }
       }
     ],
-    "analysis": {
-      "mainAction": "met up",
-      "temporalContext": [
-        {
-          "text": "the Lost Bean cafe yesterday.",
-          "type": "TEMPORAL",
-          "properties": {
-            "root": "Lost Bean cafe"
-          }
+    "dates": [
+      {
+        "text": "yesterday in the morning.",
+        "start": "2001-03-23T09:00:00.000Z",
+        "end": "2001-03-23T23:59:59.999Z",
+        "timezone": "Etc/Utc",
+        "duration": {
+          "years": 0,
+          "months": 0,
+          "days": 0,
+          "hours": 15,
+          "minutes": 0
+        },
+        "offset": {
+          "index": 10,
+          "start": 41,
+          "length": 25
         }
-      ],
-      "spatialContext": [
-        {
-          "id": "location_1",
-          "text": "the Lost Bean cafe yesterday.",
-          "type": "ESTABLISHMENT",
-          "properties": {
-            "category": "cafe",
-            "determiner": "the",
-            "root": "Lost Bean cafe",
-            "confidence": 0.8
-          },
-          "confidence": 0.8
-        }
-      ]
-    }
+      }
+    ]
   }
 ]
