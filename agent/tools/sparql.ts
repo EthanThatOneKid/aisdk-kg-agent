@@ -2,6 +2,7 @@ import { z } from "zod";
 import { tool } from "ai";
 import type { QueryEngine } from "@comunica/query-sparql";
 import type { IQueryContextCommon } from "@comunica/types";
+import { sparqlSchema } from "#/sparql/zod.ts";
 
 export interface SparqlToolOptions {
   queryEngine: QueryEngine;
@@ -12,7 +13,7 @@ export function sparql({ queryEngine, context }: SparqlToolOptions) {
   return tool({
     description: "Execute a SPARQL query",
     inputSchema: z.object({
-      query: z.string().describe("The SPARQL query to execute"),
+      query: sparqlSchema.describe("The SPARQL query to execute"),
     }),
     execute: async ({ query }) => {
       const result = await queryEngine.query(query, context);

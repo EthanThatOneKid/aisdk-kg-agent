@@ -1,8 +1,8 @@
 import { assert, assertEquals } from "@std/assert";
-import { analyzeContent } from "./compromise.ts";
+import { recognizeEntityGroups } from "./compromise.ts";
 
 Deno.test("analyzeContent snapshot test", () => {
-  const analysis = analyzeContent(
+  const analysis = recognizeEntityGroups(
     "I met up with Kyle at the Lost Bean cafe yesterday in the morning.",
   );
   assertEquals(analysis.length, 1);
@@ -25,7 +25,7 @@ Deno.test("analyzeContent snapshot test", () => {
 });
 
 Deno.test("Complex Multiple Entity Interpretations Test", () => {
-  const [analyzedClause] = analyzeContent(
+  const [analyzedClause] = recognizeEntityGroups(
     "The CEO of Apple Inc. visited the Apple Store in New York.",
   );
 

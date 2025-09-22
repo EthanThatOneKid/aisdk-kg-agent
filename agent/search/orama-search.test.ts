@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import type { OramaTriple } from "./orama-search.ts";
 import {
   createOramaTripleStore,
@@ -64,17 +64,17 @@ Deno.test("OramaSearchService CRUD Operations", async (t) => {
     // Search for partial object terms
     const partialResults = await searchService.search("piz");
     assertEquals(partialResults.length, 1);
-    assertEquals(partialResults.includes("Bob"), true);
+    assert(partialResults.includes("Bob"));
 
     // Search for "cof" which should match "coffee"
     const cofResults = await searchService.search("cof");
     assertEquals(cofResults.length, 1);
-    assertEquals(cofResults.includes("Alice"), true);
+    assert(cofResults.includes("Alice"));
 
     // Search for "New" which should match "New York"
     const newResults = await searchService.search("New");
     assertEquals(newResults.length, 1);
-    assertEquals(newResults.includes("John"), true);
+    assert(newResults.includes("John"));
   });
 
   await t.step("Search with no matches", async () => {
@@ -280,7 +280,7 @@ Deno.test("Orama Search CRUD Operations", async (t) => {
     assertExists(id);
 
     // Empty strings might not be searchable in Orama, so we test insertion success
-    // and verify the triple was inserted by checking if we can find it
+    // and verify the triple was inserted by checking if we can find it.
     const foundId = await findTriple(orama, triple);
     // If empty strings are not searchable, foundId will be null, which is acceptable
     // The important thing is that insertion succeeded

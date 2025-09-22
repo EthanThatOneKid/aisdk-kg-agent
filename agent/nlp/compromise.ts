@@ -1,6 +1,9 @@
 import { default as nlp } from "compromise";
 
-export interface NlpAnalysis {
+// TODO: Extend nlp with pluginDates.
+
+export interface NlpClause {
+  text: string;
   entities: NlpEntity[];
 }
 
@@ -25,30 +28,24 @@ export interface NlpOffset {
   length: number;
 }
 
-export function analyzeContent(content: string) {
-  const analyses: NlpAnalysis[] = [];
+export function recognizeEntityGroups(content: string) {
+  const entityGroups: NlpClause[] = [];
 
   const doc = nlp(content);
   doc.clauses().forEach((clause) => {
-    analyses.push(analyzeClause(clause));
+    const entities = recognizeEntities(clause);
+    entityGroups.push({ text: clause.text(), entities });
   });
 
-  return analyses;
+  return entityGroups;
 }
 
 // deno-lint-ignore no-explicit-any
-function analyzeClause(clause: any): NlpAnalysis {
-  return {
-    entities: analyzeEntities(clause),
-  };
-}
-
-// deno-lint-ignore no-explicit-any
-function analyzeEntities(clause: any): NlpEntity[] {
+function recognizeEntities(clause: any): NlpEntity[] {
   const entities: NlpEntity[] = [];
   const processedOffsets = new Set<string>();
 
-  // Process topics first
+  // Process topics first.
   const topics = clause.topics().json({ offset: true, unique: true });
   for (const topic of topics) {
     const offsetKey = `${topic.offset.start}-${
@@ -64,7 +61,7 @@ function analyzeEntities(clause: any): NlpEntity[] {
     }
   }
 
-  // Process nouns - skip only if exact same offset as existing entity
+  // Process nouns and skip only if exact same offset as existing entity.
   const nouns = clause.nouns().json({ offset: true, unique: true });
   for (const noun of nouns) {
     const offsetKey = `${noun.offset.start}-${
@@ -83,6 +80,7 @@ function analyzeEntities(clause: any): NlpEntity[] {
           isSubordinate: noun.noun.isSubordinate,
         },
       });
+
       processedOffsets.add(offsetKey);
     }
   }
@@ -91,17 +89,12 @@ function analyzeEntities(clause: any): NlpEntity[] {
 }
 
 function collectTags(terms: Array<{ tags: string[] }>): string[] {
-  try {
-    const tags = new Set<string>();
-    for (const term of terms) {
-      for (const tag of term.tags) {
-        tags.add(tag);
-      }
+  const tags = new Set<string>();
+  for (const term of terms) {
+    for (const tag of term.tags) {
+      tags.add(tag);
     }
-
-    return Array.from(tags);
-  } catch (error) {
-    console.log({ terms });
-    throw error;
   }
+
+  return Array.from(tags);
 }

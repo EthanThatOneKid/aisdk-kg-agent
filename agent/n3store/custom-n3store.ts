@@ -41,7 +41,7 @@ export class CustomN3Store extends Store {
   public override addQuad(...args: Parameters<Store["addQuad"]>): boolean {
     const result = super.addQuad(...args);
     if (result) {
-      // args[0] is the Quad parameter from the N3 Store addQuad method
+      // args[0] is the Quad parameter from the N3 Store addQuad method.
       const quad = args[0];
       this.notifyInterceptors("addQuad", quad);
     }
@@ -53,7 +53,7 @@ export class CustomN3Store extends Store {
   ): boolean {
     const result = super.removeQuad(...args);
     if (result) {
-      // args[0] is the Quad parameter from the N3 Store removeQuad method
+      // args[0] is the Quad parameter from the N3 Store removeQuad method.
       const quad = args[0];
       this.notifyInterceptors("removeQuad", quad);
     }
