@@ -1,0 +1,6 @@
+@prefix ex: <http://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:Speaker ex:metWith ex:Kyle .
+ex:Speaker ex:metAt ex:LostBeanCafe .
+ex:Kyle ex:metAt ex:LostBeanCafe .
