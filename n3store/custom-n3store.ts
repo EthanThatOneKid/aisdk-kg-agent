@@ -33,7 +33,7 @@ export class CustomN3Store extends Store {
           "Quad:",
           quad,
         );
-        // Continue with other interceptors even if one fails
+        // Continue with other interceptors even if one fails...
       }
     });
   }
@@ -45,6 +45,7 @@ export class CustomN3Store extends Store {
       const quad = args[0];
       this.notifyInterceptors("addQuad", quad);
     }
+
     return result;
   }
 
@@ -57,6 +58,7 @@ export class CustomN3Store extends Store {
       const quad = args[0];
       this.notifyInterceptors("removeQuad", quad);
     }
+
     return result;
   }
 }

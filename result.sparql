@@ -1,0 +1,25 @@
+
+
+```sparql
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX dc: <http://purl.org/dc/elements/1.1/>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+
+INSERT DATA {
+  <https://fartlabs.org#me> schema:interactedWith <https://fartlabs.org/.well-known/genid/224a015b-8225-44bc-8be9-725d1b30b6fb> ;
+    schema:location <https://fartlabs.org/.well-known/genid/c2a17572-cf5d-4836-a517-5a0e9aeab707> ;
+    schema:startDate "2025-09-22T09:00:00Z"^^xsd:dateTime ;
+    schema:recordedAt "2025-09-23T16:06:23.303Z"^^xsd:dateTime .
+  <https://fartlabs.org/.well-known/genid/224a015b-8225-44bc-8be9-725d1b30b6fb> a foaf:Person ;
+    foaf:name "Kyle" .
+  <https://fartlabs.org/.well-known/genid/c2a17572-cf5d-4836-a517-5a0e9aeab707> a schema:CafeOrCoffeeShop ;
+    schema:name "The Lost Bean cafe" .
+}
+```

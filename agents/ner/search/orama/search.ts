@@ -1,16 +1,23 @@
 import { create, insert, remove, search } from "@orama/orama";
-import type { SearchService } from "./search.ts";
+import type { SearchResult, SearchService } from "agents/ner/search/search.ts";
 
 export class OramaSearchService implements SearchService {
   constructor(private readonly orama: OramaTripleStore) {}
 
-  async search(query: string): Promise<string[]> {
+  async search(query: string): Promise<SearchResult[]> {
     const result = await search(this.orama, {
       term: query,
       properties: ["object"],
     });
-    const subjects = result.hits.map((hit) => hit.document.subject);
-    return Array.from(new Set(subjects));
+    const subjects = result.hits
+      .map((hit) => ({ subject: hit.document.subject, score: hit.score }))
+      .reduce((acc, cur) => {
+        acc.set(cur.subject, (acc.get(cur.subject) ?? 0) + cur.score);
+        return acc;
+      }, new Map<string, number>());
+    return Array.from(subjects.entries())
+      .toSorted((a, b) => b[1] - a[1])
+      .map(([subject, score]) => ({ subject, score }));
   }
 }
 
