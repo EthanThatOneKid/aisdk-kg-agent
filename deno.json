@@ -1,8 +1,8 @@
 {
   "lock": false,
   "tasks": {
-    "start": "deno run -A --env main.ts",
-    "test": "deno test --allow-env --allow-sys",
+    "start": "deno run -A --env --unstable-raw-imports main.ts",
+    "test": "deno test --unstable-raw-imports --allow-env --allow-sys",
     "outdated": "deno outdated --update --latest"
   },
   "imports": {
@@ -19,6 +19,7 @@
     "compromise": "npm:compromise@^14.14.4",
     "compromise-dates": "npm:compromise-dates@^3.7.1",
     "n3": "npm:n3@^1.26.0",
+    "shacl-engine": "npm:shacl-engine@^1.0.2",
     "sparqlalgebrajs": "npm:sparqlalgebrajs@^5.0.1",
     "zod": "npm:zod@^4.1.11"
   }

@@ -9,6 +9,9 @@ import {
   createOramaTripleStore,
   OramaSearchService,
 } from "agents/ner/search/orama/search.ts";
+import schemaShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
+  type: "text",
+};
 
 if (import.meta.main) {
   try {
@@ -40,11 +43,23 @@ if (import.meta.main) {
     const references = autosuggest(suggestions);
 
     console.log("Generating Turtle...");
-
     const ttl = await generateTurtle(model, {
       inputText,
       references,
-      generateTimestamp: () => new Date().toISOString(),
+      timestamp: new Intl.DateTimeFormat(
+        "en-US",
+        {
+          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        },
+      ).format(new Date()),
+      shaclShapes: schemaShapes,
     });
 
     console.log(inputText);
