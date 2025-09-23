@@ -6,8 +6,6 @@ import type { SearchResult, SearchService } from "./search.ts";
  */
 export interface SuggestionsContext {
   entities: NerEntity[];
-  user?: { id: string };
-  generateId?: (text: string) => string;
 }
 
 /**
@@ -41,29 +39,11 @@ export async function generateSuggestions(
       continue;
     }
 
-    // Resolve the user to their own ID.
-    if (context.user !== undefined && entity.text === "I") {
-      searchCache.set(
-        entity.text,
-        [{ subject: context.user.id, score: 0 }],
-      );
-      continue;
-    }
-
     const results = await service.search(entity.text);
     searchCache.set(entity.text, results);
   }
 
-  const entityIds = new Map<string, string>();
   searchCache.forEach((results, text) => {
-    // If we have a generateId function, use it to generate a unique ID for the entity.
-    if (context.generateId !== undefined) {
-      const id = entityIds.get(text) ?? context.generateId(text);
-      entityIds.set(text, id);
-      results.push({ subject: id, score: 0 });
-      return;
-    }
-
     // If no associated results, delete the entry from the cache.
     if (results.length > 0) {
       return;

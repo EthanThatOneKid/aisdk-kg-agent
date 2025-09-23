@@ -30,12 +30,7 @@ if (import.meta.main) {
 
     const suggestions = await generateSuggestions(
       searchService,
-      {
-        entities: nerResult,
-        user: { id: "https://fartlabs.org#me" },
-        generateId: () =>
-          `https://fartlabs.org/.well-known/genid/${crypto.randomUUID()}`,
-      },
+      { entities: nerResult },
     );
 
     // Wait for user to select or choose to auto-resolve entities.
@@ -62,12 +57,51 @@ if (import.meta.main) {
       shaclShapes: schemaShapes,
     });
 
-    console.log(inputText);
+    console.log("Input text:", inputText);
+    console.log("Generated Turtle:");
     console.log(ttl);
+    console.log("Turtle length:", ttl.length);
 
     await Deno.writeTextFile("./result.ttl", ttl);
   } catch (error) {
-    console.error("Error:", error);
+    console.error("=== ERROR DETAILS ===");
+    console.error("Error name:", (error as Error).name);
+    console.error("Error message:", (error as Error).message);
+    console.error("Error stack:", (error as Error).stack);
+
+    // Check if it's a Google API error
+    if ((error as Error).name === "AI_LoadAPIKeyError") {
+      console.error("\n=== GOOGLE API ERROR ===");
+      console.error(
+        "This is a Google API key error. The application requires a valid Google Generative AI API key.",
+      );
+      console.error("To fix this, you need to:");
+      console.error(
+        "1. Get a Google AI API key from https://makersuite.google.com/app/apikey",
+      );
+      console.error(
+        "2. Set the environment variable: GOOGLE_GENERATIVE_AI_API_KEY=your_api_key_here",
+      );
+      console.error("3. Or pass it directly to the google() function");
+      console.error("\nCurrent environment variables:");
+      console.error(
+        "GOOGLE_GENERATIVE_AI_API_KEY:",
+        Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY") ? "SET" : "NOT SET",
+      );
+    } else if ((error as Error).name === "AI_UnsupportedModelVersionError") {
+      console.error("\n=== MODEL VERSION ERROR ===");
+      console.error(
+        "This is a model version compatibility error with the AI SDK.",
+      );
+    } else {
+      console.error("\n=== OTHER ERROR ===");
+      console.error(
+        "This appears to be a different type of error, not related to the Google API.",
+      );
+    }
+
+    console.error("\n=== FULL ERROR OBJECT ===");
+    console.error(JSON.stringify(error, null, 2));
   } finally {
     console.log("Done.");
   }
