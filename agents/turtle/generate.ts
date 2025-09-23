@@ -1,6 +1,7 @@
 import type { LanguageModel, ModelMessage } from "ai";
 import { Experimental_Agent as Agent } from "ai";
 import { validateTurtle } from "./shacl/validate.ts";
+import { examples } from "./few-shot.ts";
 
 interface GenerateTurtleContext {
   inputText: string;
@@ -9,6 +10,7 @@ interface GenerateTurtleContext {
   timestamp?: string;
   maxRetries?: number;
   shaclShapes?: string;
+  temperature?: number;
 }
 
 const defaultAllowedPrefixes = [
@@ -32,6 +34,7 @@ export async function generateTurtle(
   const allowedPrefixes = context.allowedPrefixes ?? defaultAllowedPrefixes;
   const agent = new Agent({
     model,
+    temperature: context.temperature ?? 0.1,
     system: [
       "You are an expert episodic memory extractor for RDF knowledge graphs.",
       "Convert natural language into valid Turtle (TTL) using schema.org so that episodes (who/what/when/where) are faithfully captured.",
@@ -53,263 +56,16 @@ export async function generateTurtle(
     ].join("\n"),
   });
 
+  const fewShot: ModelMessage[] = examples.flatMap((
+    example,
+  ): ModelMessage[] => [
+    { role: "user", content: example.input },
+    { role: "assistant", content: example.output },
+  ]);
+
   const messages: ModelMessage[] = [
-    {
-      role: "user",
-      content: "Kevin Bacon finished watching Footloose on March 1st, 2014.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#watch1> a schema:WatchAction;",
-        "  schema:agent <#kevinBacon>;",
-        "  schema:object <#footloose>;",
-        "  schema:actionStatus schema:CompletedActionStatus;",
-        '  schema:startTime "2014-03-01"^^xsd:date .',
-        "",
-        '<#kevinBacon> a schema:Person; schema:name "Kevin Bacon" .',
-        '<#footloose> a schema:Movie; schema:name "Footloose" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "Alice read the article 'The Future of AI' yesterday.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#read1> a schema:ReadAction;",
-        "  schema:agent <#alice>;",
-        "  schema:object <#aiArticle>;",
-        "  schema:actionStatus schema:CompletedActionStatus;",
-        '  schema:startTime "2025-09-22"^^xsd:date .',
-        "",
-        '<#alice> a schema:Person; schema:name "Alice" .',
-        '<#aiArticle> a schema:Article; schema:headline "The Future of AI" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "Maria ate dinner at Mama Mia's Pizza on May 5, 2024.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#eat1> a schema:EatAction;",
-        "  schema:agent <#maria>;",
-        "  schema:object <#mamaMias>;",
-        '  schema:startTime "2024-05-05"^^xsd:date;',
-        "  schema:actionStatus schema:CompletedActionStatus .",
-        "",
-        '<#maria> a schema:Person; schema:name "Maria" .',
-        '<#mamaMias> a schema:Restaurant; schema:name "Mama Mia\'s Pizza" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "Tom drank a cappuccino at Central Cafe yesterday morning.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#drink1> a schema:DrinkAction;",
-        "  schema:agent <#tom>;",
-        "  schema:object <#cappuccino>;",
-        "  schema:location <#centralCafe>;",
-        '  schema:startTime "2025-09-22T09:00:00-07:00"^^xsd:dateTime;',
-        "  schema:actionStatus schema:CompletedActionStatus .",
-        "",
-        '<#tom> a schema:Person; schema:name "Tom" .',
-        '<#cappuccino> a schema:MenuItem; schema:name "Cappuccino" .',
-        '<#centralCafe> a schema:CafeOrCoffeeShop; schema:name "Central Cafe" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "Bob paid $20 for his lunch.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#pay1> a schema:PayAction;",
-        "  schema:agent <#bob>;",
-        "  schema:object <#lunch>;",
-        '  schema:price "20.00"^^xsd:decimal;',
-        '  schema:priceCurrency "USD";',
-        "  schema:actionStatus schema:CompletedActionStatus .",
-        "",
-        '<#bob> a schema:Person; schema:name "Bob" .',
-        '<#lunch> a schema:MenuItem; schema:name "Lunch" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "Lisa checked into the Grand Hotel at 3pm on August 10, 2025.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#checkin1> a schema:CheckInAction;",
-        "  schema:agent <#lisa>;",
-        "  schema:location <#grandHotel>;",
-        '  schema:startTime "2025-08-10T15:00:00-07:00"^^xsd:dateTime;',
-        "  schema:actionStatus schema:CompletedActionStatus .",
-        "",
-        '<#lisa> a schema:Person; schema:name "Lisa" .',
-        '<#grandHotel> a schema:LodgingBusiness; schema:name "Grand Hotel" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "Support sent John an email on March 2, 2025.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#email1> a schema:EmailAction;",
-        "  schema:agent <#support>;",
-        "  schema:recipient <#john>;",
-        '  schema:startTime "2025-03-02"^^xsd:date;',
-        "  schema:actionStatus schema:CompletedActionStatus .",
-        "",
-        '<#support> a schema:Organization; schema:name "Support" .',
-        '<#john> a schema:Person; schema:name "John" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "Alex left a review for The Matrix on Feb 1, 2024.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#review1> a schema:ReviewAction;",
-        "  schema:agent <#alex>;",
-        "  schema:object <#matrix>;",
-        '  schema:startTime "2024-02-01"^^xsd:date;',
-        "  schema:actionStatus schema:CompletedActionStatus;",
-        "  schema:result <#matrixReview> .",
-        "",
-        '<#alex> a schema:Person; schema:name "Alex" .',
-        '<#matrix> a schema:Movie; schema:name "The Matrix" .',
-        "<#matrixReview> a schema:Review .",
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "City Arts Council hosts a free park concert on July 12, 2025.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#event1> a schema:MusicEvent;",
-        '  schema:name "Summer Park Concert";',
-        '  schema:startDate "2025-07-12T19:00:00-07:00"^^xsd:dateTime;',
-        "  schema:location <#riversidePark>;",
-        "  schema:organizer <#cityArts> .",
-        "",
-        '<#riversidePark> a schema:Park; schema:name "Riverside Park" .',
-        '<#cityArts> a schema:Organization; schema:name "City Arts Council" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "The Warriors played a basketball game on May 1, 2025.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#game1> a schema:SportsEvent;",
-        '  schema:name "Warriors Basketball Game";',
-        '  schema:startDate "2025-05-01"^^xsd:date;',
-        "  schema:performer <#warriors> .",
-        "",
-        '<#warriors> a schema:SportsTeam; schema:name "Warriors" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "John reserved flight UA123 from SFO to EWR on Oct 20, 2025.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#res1> a schema:FlightReservation;",
-        '  schema:reservationId "FL123456";',
-        "  schema:reservationStatus <https://schema.org/ReservationConfirmed>;",
-        "  schema:underName <#johnSmith>;",
-        "  schema:reservationFor <#flight1> .",
-        "",
-        '<#johnSmith> a schema:Person; schema:name "John Smith" .',
-        "<#flight1> a schema:Flight;",
-        '  schema:flightNumber "UA123";',
-        "  schema:departureAirport <#sfo>;",
-        "  schema:arrivalAirport <#ewr>;",
-        '  schema:departureTime "2025-10-20T08:00:00-07:00"^^xsd:dateTime;',
-        '  schema:arrivalTime "2025-10-20T16:00:00-04:00"^^xsd:dateTime .',
-        "",
-        '<#sfo> a schema:Airport; schema:iataCode "SFO" .',
-        '<#ewr> a schema:Airport; schema:iataCode "EWR" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content: "A European trip covered Paris and Rome in June 2025.",
-    },
-    {
-      role: "assistant",
-      content: [
-        "@prefix schema: <https://schema.org/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        "<#trip1> a schema:Trip;",
-        '  schema:name "European Adventure";',
-        '  schema:departureTime "2025-06-01"^^xsd:date;',
-        '  schema:arrivalTime "2025-06-15"^^xsd:date;',
-        "  schema:itinerary <#paris>, <#rome> .",
-        "",
-        '<#paris> a schema:Place; schema:name "Paris, France" .',
-        '<#rome> a schema:Place; schema:name "Rome, Italy" .',
-      ].join("\n"),
-    },
-    {
-      role: "user",
-      content:
-        "On the Tartine Bakery page, you can view it on the web at http://www.urbanspoon.com/r/6/92204 or in the Urbanspoon iOS app.",
-    },
+    ...fewShot,
+    { role: "user", content: "Here is the input text:" },
     { role: "user", content: context.inputText },
     {
       role: "user",

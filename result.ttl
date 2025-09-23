@@ -1,18 +1,18 @@
 @prefix schema: <https://schema.org/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
+<#meetup1> a schema:CommunicateAction;
+  schema:agent <https://fartlabs.org#me>;
+  schema:participant <https://fartlabs.org/.well-known/genid/35f07b26-28ef-4a5f-975c-ea4ab7e13f57>;
+  schema:location <https://fartlabs.org/.well-known/genid/613faf9e-3326-4fd5-93c9-b45cbf15c2ee>;
+  schema:startTime "2025-09-22T09:00:00-07:00"^^xsd:dateTime;
+  schema:actionStatus schema:CompletedActionStatus .
+
 <https://fartlabs.org#me> a schema:Person;
   schema:name "I" .
 
-<https://fartlabs.org/.well-known/genid/f2389250-cb18-41f9-856c-a78ba9cbc017> a schema:Person;
+<https://fartlabs.org/.well-known/genid/35f07b26-28ef-4a5f-975c-ea4ab7e13f57> a schema:Person;
   schema:name "Kyle" .
 
-<https://fartlabs.org/.well-known/genid/6ba60e28-40e9-4d94-90e4-4b73dcc6c816> a schema:CafeOrCoffeeShop;
+<https://fartlabs.org/.well-known/genid/613faf9e-3326-4fd5-93c9-b45cbf15c2ee> a schema:CafeOrCoffeeShop;
   schema:name "Lost Bean cafe" .
-
-<#meetup1> a schema:CommunicateAction;
-  schema:agent <https://fartlabs.org#me>;
-  schema:recipient <https://fartlabs.org/.well-known/genid/f2389250-cb18-41f9-856c-a78ba9cbc017>;
-  schema:location <https://fartlabs.org/.well-known/genid/6ba60e28-40e9-4d94-90e4-4b73dcc6c816>;
-  schema:startTime "2025-09-22T09:00:00-07:00"^^xsd:dateTime;
-  schema:actionStatus schema:CompletedActionStatus .
