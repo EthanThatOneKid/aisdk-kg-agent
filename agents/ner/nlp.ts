@@ -4,11 +4,11 @@ import type { NerEntity } from "./schema.ts";
 
 nlp.extend(pluginDates);
 
+// TODO: Improve deduplication of entities.
 export function recognizeEntities(text: string): NerEntity[] {
   const entities: NerEntity[] = [];
 
   const doc = nlp(text);
-
   const topics = doc.topics().json({ offset: true, unique: true });
   for (const topic of topics) {
     entities.push({

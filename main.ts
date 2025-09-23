@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { generateSparql } from "agents/sparql/generate.ts";
+import { generateTurtle } from "agents/turtle/generate.ts";
 import { recognizeEntities } from "agents/ner/nlp.ts";
 import {
   autosuggest,
@@ -39,18 +39,18 @@ if (import.meta.main) {
     // User may create a new ID for an entity here, as long as it's a valid, unique IRI.
     const references = autosuggest(suggestions);
 
-    console.log("Generating SPARQL query...");
+    console.log("Generating Turtle...");
 
-    const sparqlQuery = await generateSparql(model, {
+    const ttl = await generateTurtle(model, {
       inputText,
       references,
       generateTimestamp: () => new Date().toISOString(),
     });
 
     console.log(inputText);
-    console.log(sparqlQuery);
+    console.log(ttl);
 
-    await Deno.writeTextFile("./result.sparql", sparqlQuery);
+    await Deno.writeTextFile("./result.ttl", ttl);
   } catch (error) {
     console.error("Error:", error);
   } finally {

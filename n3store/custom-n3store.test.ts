@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { QueryEngine } from "@comunica/query-sparql";
 import { DataFactory } from "n3";
+import { addTurtle } from "agents/turtle/add.ts";
 import { CustomN3Store } from "./custom-n3store.ts";
 import { CountInterceptor } from "./interceptor/count-interceptor.ts";
 import { ErrorInterceptor } from "./interceptor/error-interceptor.ts";
@@ -674,6 +675,26 @@ Deno.test("Error handling with multiple error interceptors", () => {
     errors2[0].error.message,
     "ErrorInterceptor: addQuad failed",
   );
+});
+
+Deno.test("Directly adding parsed Turtle quads triggers interceptors", () => {
+  const countInterceptor = new CountInterceptor();
+  const store = new CustomN3Store([countInterceptor]);
+
+  const turtle = `
+@prefix ex: <http://example.org/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+ex:person1 rdf:type ex:Person ;
+           ex:name "John Doe" ;
+           ex:age 30 .
+`;
+  addTurtle(store, turtle);
+
+  // Three triples in the Turtle should result in three intercepted additions.
+  assertEquals(countInterceptor.added, 3);
+  assertEquals(countInterceptor.removed, 0);
+  assertEquals(store.size, 3);
 });
 
 Deno.test("Interceptor error handling with SPARQL operations", async () => {

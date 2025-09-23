@@ -6,7 +6,6 @@
     "outdated": "deno outdated --update --latest"
   },
   "imports": {
-    "#/": "./agent/",
     "agents/": "./agents/",
     "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.15",
     "@comunica/query-sparql": "npm:@comunica/query-sparql@^4.4.0",
