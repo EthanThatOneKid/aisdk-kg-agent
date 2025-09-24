@@ -9,7 +9,7 @@ export interface GenerateIdToolConfig {
 export function generateIdTool(config: GenerateIdToolConfig) {
   const { generate, verbose = true } = config;
 
-  // Track generated IDs to ensure consistency
+  // Track generated IDs to ensure consistency.
   const generatedIds = new Map<string, string>();
   return tool({
     description:

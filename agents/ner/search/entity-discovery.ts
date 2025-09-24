@@ -1,10 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 
 import type { SearchResult, SearchService } from "./search.ts";
+import type { NerOffset } from "../schema.ts";
 import { default as nlp } from "compromise";
 import { default as pluginDates } from "compromise-dates";
 
-// Extend compromise with dates plugin
+// Extend compromise with dates plugin.
 nlp.extend(pluginDates);
 
 /**
@@ -20,21 +21,27 @@ export class EntityDiscoveryService {
    * for them directly in the existing knowledge graph using Orama search.
    * This provides reconnaissance context for the LLM without requiring NER preprocessing.
    */
-  async discoverEntities(inputText: string): Promise<EntityDiscoveryResult> {
-    // Use Orama search directly to find candidates from the input text
+  async discoverEntities(
+    inputText: string,
+  ): Promise<EntityDiscoveryResult<SearchResult>> {
+    // Use Orama search directly to find candidates from the input text.
     const searchResults = await this.searchService.search(inputText);
 
-    // Extract unique entity candidates from search results
-    const candidateMap = new Map<string, EntityDiscovery>();
+    // Extract unique entity candidates from search results.
+    const candidateMap = new Map<string, EntityDiscovery<SearchResult>>();
 
     for (const result of searchResults) {
-      // Extract potential entity text from the search result
-      // This could be from subject, predicate, or object fields
-      const entityText = this.extractEntityFromSearchResult(result, inputText);
-      if (entityText && entityText.length > 1) {
-        if (!candidateMap.has(entityText)) {
-          candidateMap.set(entityText, {
-            text: entityText,
+      // Extract potential entity text from the search result.
+      // This could be from subject, predicate, or object fields.
+      const entityData = this.extractEntityFromSearchResult(result, inputText);
+      if (entityData && entityData.text.length > 1) {
+        const entityKey =
+          `${entityData.text}:${entityData.offset.start}:${entityData.offset.length}`;
+        if (!candidateMap.has(entityKey)) {
+          candidateMap.set(entityKey, {
+            text: entityData.text,
+            type: entityData.type,
+            offset: entityData.offset,
             found: true,
             matches: 0,
             sampleIds: [],
@@ -42,14 +49,14 @@ export class EntityDiscoveryService {
           });
         }
 
-        const discovery = candidateMap.get(entityText)!;
+        const discovery = candidateMap.get(entityKey)!;
         discovery.matches++;
         discovery.sampleIds.push(result.subject);
         discovery.searchResults.push(result);
       }
     }
 
-    // Sort discoveries by search score (highest score first)
+    // Sort discoveries by search score (highest score first).
     const sortedDiscoveries = new Map(
       Array.from(candidateMap.entries()).sort(([, a], [, b]) => {
         const scoreA = a.searchResults.length > 0
@@ -64,7 +71,7 @@ export class EntityDiscoveryService {
 
     return {
       inputText,
-      candidates: Array.from(candidateMap.keys()),
+      candidates: Array.from(candidateMap.values()).map((d) => d.text),
       discoveries: sortedDiscoveries,
       totalCandidates: candidateMap.size,
       foundEntities: candidateMap.size,
@@ -79,28 +86,29 @@ export class EntityDiscoveryService {
   private extractEntityFromSearchResult(
     result: SearchResult,
     inputText: string,
-  ): string | null {
+  ): { text: string; type: string; offset: NerOffset } | null {
     const inputLower = inputText.toLowerCase();
     const objectLower = result.object.toLowerCase();
 
-    // Try different extraction strategies and return the best match
+    // Try different extraction strategies and return the best match.
     const strategies = [
-      () => this.extractDirectMatch(objectLower, inputLower),
-      () => this.extractWithCompromise(objectLower, inputLower),
+      () => this.extractDirectMatch(objectLower, inputLower, inputText),
+      () => this.extractWithCompromise(objectLower, inputLower, inputText),
     ];
 
-    let bestMatch = "";
+    let bestMatch: { text: string; type: string; offset: NerOffset } | null =
+      null;
     let bestLength = 0;
 
     for (const strategy of strategies) {
       const match = strategy();
-      if (match && match.length > bestLength) {
+      if (match && match.text.length > bestLength) {
         bestMatch = match;
-        bestLength = match.length;
+        bestLength = match.text.length;
       }
     }
 
-    return bestMatch || null;
+    return bestMatch;
   }
 
   /**
@@ -109,9 +117,22 @@ export class EntityDiscoveryService {
   private extractDirectMatch(
     objectText: string,
     inputLower: string,
-  ): string | null {
+    _inputText: string,
+  ): { text: string; type: string; offset: NerOffset } | null {
     const objectLower = objectText.toLowerCase();
-    return inputLower.includes(objectLower) ? objectText : null;
+    if (inputLower.includes(objectLower)) {
+      const start = inputLower.indexOf(objectLower);
+      return {
+        text: objectText,
+        type: "direct",
+        offset: {
+          index: start,
+          start: start,
+          length: objectText.length,
+        },
+      };
+    }
+    return null;
   }
 
   /**
@@ -121,45 +142,60 @@ export class EntityDiscoveryService {
   private extractWithCompromise(
     objectText: string,
     inputLower: string,
-  ): string | null {
+    inputText: string,
+  ): { text: string; type: string; offset: NerOffset } | null {
     try {
       const doc = nlp(objectText);
-      let bestMatch = "";
+      let bestMatch: { text: string; type: string; offset: NerOffset } | null =
+        null;
       let bestLength = 0;
 
-      // Helper function to check and update best match
-      const checkMatch = (text: string) => {
+      // Helper function to check and update best match.
+      const checkMatch = (text: string, type: string, _offset: any) => {
         const cleanText = text.trim().toLowerCase();
         if (cleanText.length > 1 && inputLower.includes(cleanText)) {
           if (cleanText.length > bestLength) {
-            bestMatch = text.trim();
+            const start = inputLower.indexOf(cleanText);
+            bestMatch = {
+              text: text.trim(),
+              type: type,
+              offset: {
+                index: start,
+                start: start,
+                length: text.trim().length,
+              },
+            };
             bestLength = cleanText.length;
           }
         }
       };
 
-      // Extract topics (proper nouns, organizations, etc.) - same as nlp.ts
+      // Extract topics (proper nouns, organizations, etc.) - same as nlp.ts.
       const topics = doc.topics().json({ offset: true, unique: true });
       topics.forEach((topic: any) => {
-        checkMatch(topic.text);
+        checkMatch(topic.text, "topic", topic.offset);
       });
 
-      // Extract nouns (including proper nouns) - same as nlp.ts
+      // Extract nouns (including proper nouns) - same as nlp.ts.
       const nouns = doc.nouns().json({ offset: true, unique: true });
       nouns.forEach((noun: any) => {
-        checkMatch(noun.text);
+        checkMatch(noun.text, "noun", noun.offset);
       });
 
-      // Extract dates and times using Compromise dates plugin - same as nlp.ts
+      // Extract dates and times using Compromise dates plugin - same as nlp.ts.
       const dates = (doc as any).dates().json({ offset: true, unique: true });
       dates.forEach((date: any) => {
-        checkMatch(date.text);
+        checkMatch(date.text, "date", date.offset);
       });
 
-      return bestMatch || null;
+      return bestMatch;
     } catch (_e) {
-      // Fallback to simple word matching if Compromise fails
-      return this.extractLongestSubstringFallback(objectText, inputLower);
+      // Fallback to simple word matching if Compromise fails.
+      return this.extractLongestSubstringFallback(
+        objectText,
+        inputLower,
+        inputText,
+      );
     }
   }
 
@@ -169,23 +205,34 @@ export class EntityDiscoveryService {
   private extractLongestSubstringFallback(
     objectText: string,
     inputLower: string,
-  ): string | null {
+    _inputText: string,
+  ): { text: string; type: string; offset: NerOffset } | null {
     const words = objectText.split(/\s+/);
-    let bestMatch = "";
+    let bestMatch: { text: string; type: string; offset: NerOffset } | null =
+      null;
     let bestLength = 0;
 
-    // Check single words
+    // Check single words.
     for (const word of words) {
       const cleanWord = word.replace(/[.,!?;:]$/, "").toLowerCase();
       if (cleanWord.length > 1 && inputLower.includes(cleanWord)) {
         if (cleanWord.length > bestLength) {
-          bestMatch = word.replace(/[.,!?;:]$/, "");
+          const start = inputLower.indexOf(cleanWord);
+          bestMatch = {
+            text: word.replace(/[.,!?;:]$/, ""),
+            type: "word",
+            offset: {
+              index: start,
+              start: start,
+              length: word.replace(/[.,!?;:]$/, "").length,
+            },
+          };
           bestLength = cleanWord.length;
         }
       }
     }
 
-    // Check multi-word phrases (2-5 words)
+    // Check multi-word phrases (2-5 words).
     for (let i = 0; i < words.length - 1; i++) {
       for (
         let length = 2;
@@ -200,20 +247,31 @@ export class EntityDiscoveryService {
         if (
           inputLower.includes(phraseLower) && phraseLower.length > bestLength
         ) {
-          bestMatch = phrase;
+          const start = inputLower.indexOf(phraseLower);
+          bestMatch = {
+            text: phrase,
+            type: "phrase",
+            offset: {
+              index: start,
+              start: start,
+              length: phrase.length,
+            },
+          };
           bestLength = phraseLower.length;
         }
       }
     }
 
-    return bestMatch || null;
+    return bestMatch;
   }
 
   /**
    * createReconnaissanceContext generates context for the LLM about
-   * entities that need SPARQL reconnaissance, without requiring NER.
+   * entities that need SPARQL reconnaissance, using recognized entity IDs.
    */
-  createReconnaissanceContext(discovery: EntityDiscoveryResult): string {
+  createReconnaissanceContext(
+    discovery: EntityDiscoveryResult<SearchResult>,
+  ): string {
     const foundEntities = Array.from(discovery.discoveries.values())
       .filter((d) => d.found);
 
@@ -235,10 +293,12 @@ export class EntityDiscoveryService {
         }) (sample IDs: ${e.sampleIds.join(", ")})`;
       }),
       "",
-      "SPARQL RECONNAISSANCE REQUIRED: You MUST use the sparql tool to query for these entities before generating any Turtle.",
-      "Example SPARQL queries you should run:",
-      ...foundEntities.map((e) =>
-        `  SELECT ?s ?p ?o WHERE { ?s ?p ?o . FILTER(CONTAINS(LCASE(?o), "${e.text.toLowerCase()}")) }`
+      "SPARQL RECONNAISSANCE REQUIRED: You MUST use the sparql tool to query for these recognized entity IDs before generating any Turtle.",
+      "Example SPARQL queries you should run (using the recognized IDs):",
+      ...foundEntities.flatMap((e) =>
+        e.sampleIds.slice(0, 2).map((id) =>
+          `  SELECT ?s ?p ?o WHERE { <${id}> ?p ?o . }`
+        )
       ),
       "",
       notFoundEntities.length > 0
@@ -252,18 +312,20 @@ export class EntityDiscoveryService {
   }
 }
 
-export interface EntityDiscovery {
+export interface EntityDiscovery<T = any> {
   text: string;
+  type: string; // Entity type: "topic", "noun", "date", etc.
+  offset: NerOffset; // Position information in the original text
   found: boolean;
   matches: number;
   sampleIds: string[];
-  searchResults: any[]; // SearchResult[] from the search service
+  searchResults: T[]; // SearchResult[] from the search service
 }
 
-export interface EntityDiscoveryResult {
+export interface EntityDiscoveryResult<T = any> {
   inputText: string;
   candidates: string[];
-  discoveries: Map<string, EntityDiscovery>;
+  discoveries: Map<string, EntityDiscovery<T>>;
   totalCandidates: number;
   foundEntities: number;
 }

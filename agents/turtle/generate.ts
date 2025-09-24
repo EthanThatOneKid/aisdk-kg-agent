@@ -38,19 +38,19 @@ export async function generateTurtle(
   const allowedPrefixes = context.allowedPrefixes ?? defaultAllowedPrefixes;
 
   const systemPrompt = [
-    // 1. Task context
+    // 1. Task context.
     "You are an expert episodic memory extractor for RDF knowledge graphs. Your role is to convert natural language stream of consciousness into valid Turtle (TTL) using schema.org vocabulary to faithfully capture episodes (who/what/when/where).",
 
-    // 2. Tone context
+    // 2. Tone context.
     "Maintain precision and consistency. Be thorough in entity identification and relationship mapping. Follow RDF best practices strictly. CRITICAL: Only create triples that are directly evidenced by the user input - do not fabricate, infer, or add information not explicitly mentioned.",
 
-    // 3. Background data, documents, and images
+    // 3. Background data, documents, and images.
     "You have access to schema.org vocabulary, SHACL validation shapes, a generateId tool for creating unique HTTP URIs, and a sparql tool for querying existing knowledge graph data. The sparql tool is your PRIMARY method for finding existing entity IDs - use it FIRST before generating new IDs. Use the provided references to map surface strings to subject IRIs exactly.",
     context.reconnaissanceContext
       ? `\nRECONNAISSANCE CONTEXT:\n${context.reconnaissanceContext}\n`
       : "",
 
-    // 4. Detailed task description & rules
+    // 4. Detailed task description & rules.
     "Core Requirements:",
     "- EVIDENCE-BASED ONLY: Create triples ONLY for information explicitly mentioned in the user input. Do not infer, assume, or fabricate any properties, relationships, or entities not directly stated. Do not add temporal information (times, dates, durations) unless explicitly provided. Do not add status information (completed, pending, etc.) unless explicitly stated",
     "- RECONNAISSANCE FIRST: ALWAYS start by using the sparql tool to query existing data about entities. This is your PRIMARY method for finding existing IDs and avoiding duplication",
@@ -66,18 +66,18 @@ export async function generateTurtle(
     "- Reuse identical IRIs across triples; do not alias or paraphrase",
     "- DESCRIPTIVE CONTENT: For Actions and Events, include schema:name and schema:description predicates when the input provides descriptive information. Use the natural language input to create meaningful labels and descriptions. You may also use rdfs:label for additional labeling.",
 
-    // 5. Examples (referenced via few-shot examples)
+    // 5. Examples (referenced via few-shot examples).
     "See the provided few-shot examples for proper Turtle structure and entity modeling patterns.",
     "IMPORTANT: If input says 'I met Kyle yesterday morning', do NOT add specific times like '09:00:00' or statuses like 'CompletedActionStatus' - only include what was explicitly mentioned.",
     "DESCRIPTIVE EXAMPLE: For input 'I met up with Kyle at the Lost Bean cafe', the Action should include: schema:name 'Meet up with Kyle' and schema:description 'Meeting with Kyle at the Lost Bean cafe'.",
 
-    // 6. Conversation history
+    // 6. Conversation history.
     "Previous context: You are processing user input with entity references and optional timestamp.",
 
-    // 7. Immediate task description or request
+    // 7. Immediate task description or request.
     "Current task: Convert the provided natural language input into valid Turtle RDF, ensuring all entities have proper HTTP URIs. IMPORTANT: Only include information explicitly stated in the input - do not add times, dates, statuses, or other inferred information.",
 
-    // 8. Thinking step by step / take a deep breath
+    // 8. Thinking step by step / take a deep breath.
     "MANDATORY WORKFLOW - YOU MUST FOLLOW THESE STEPS:",
     "STEP 1: NATURAL ENTITY IDENTIFICATION - Use your natural language understanding to identify all entities EXPLICITLY mentioned in the input (people, places, actions, events, objects). Do not rely on preprocessing - identify entities directly from the text.",
     "STEP 2: MANDATORY SPARQL RECONNAISSANCE - You MUST call the sparql tool for EACH identified entity to check for existing data. This is NOT optional.",
@@ -93,10 +93,10 @@ export async function generateTurtle(
     "CRITICAL: You CANNOT skip the sparql tool calls. If you generate Turtle without calling sparql first, you are violating the core requirements.",
     "ENTITY IDENTIFICATION: Trust your natural language understanding over any preprocessing. Identify entities directly from the input text context.",
 
-    // 9. Output formatting
+    // 9. Output formatting.
     "Output contract: Only output valid Turtle. No prose, no code fences, no explanations. Start with prefix declarations, then entity definitions.",
 
-    // 10. Prefilled response (if any)
+    // 10. Prefilled response (if any).
     "Final validation checklist:",
     "(1) PRIORITY: Used sparql tool FIRST to query existing data about entities",
     "(2) Followed ID resolution strategy: references → sparql → generateId (fallback only)",
@@ -163,7 +163,7 @@ export async function generateTurtle(
       stopWhen: stepCountIs(5), // Allow up to 5 steps for tool calls and text generation
     });
 
-    // Get the generated text (tools are handled automatically by generateText)
+    // Get the generated text (tools are handled automatically by generateText).
     const text = result.text;
     console.log(`📝 Generated text length: ${text.length}`);
     console.log(
@@ -171,17 +171,17 @@ export async function generateTurtle(
     );
     console.log(`🔄 Total steps executed: ${result.steps.length}`);
 
-    // Log tool calls from all steps
+    // Log tool calls from all steps.
     const allToolCalls = result.steps.flatMap((step) => step.toolCalls);
     console.log(`🔧 Total tool calls: ${allToolCalls.length}`);
 
-    // Log SPARQL tool usage specifically
+    // Log SPARQL tool usage specifically.
     const sparqlCalls = allToolCalls.filter((call) =>
       call.toolName === "sparql"
     );
     console.log(`🔍 SPARQL reconnaissance calls: ${sparqlCalls.length}`);
 
-    // VALIDATION: Check if SPARQL tool was used
+    // VALIDATION: Check if SPARQL tool was used.
     if (sparqlCalls.length === 0) {
       console.warn("⚠️  WARNING: No SPARQL reconnaissance calls detected!");
       console.warn(
@@ -217,7 +217,7 @@ export async function generateTurtle(
         ].join("\n\n");
         console.log("SHACL feedback:", feedback);
 
-        // Add the response messages to conversation history for multi-step calls
+        // Add the response messages to conversation history for multi-step calls.
         messages.push(...result.response.messages);
         messages.push({ role: "user", content: feedback });
         continue;
@@ -234,7 +234,7 @@ export async function generateTurtle(
     ].join("\n\n");
     console.log("Syntax feedback:", feedback);
 
-    // Add the response messages to conversation history for multi-step calls
+    // Add the response messages to conversation history for multi-step calls.
     messages.push(...result.response.messages);
     messages.push({ role: "user", content: feedback });
   }

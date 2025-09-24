@@ -18,14 +18,14 @@ export function autosuggest(
 ): Array<[string, string]> {
   return Array.from(suggestions.entries())
     .reduce<Array<[string, string]>>((acc, [text, results]) => {
-      // Only provide references for entities with NO existing matches
-      // This forces the LLM to use SPARQL reconnaissance for entities that DO have matches
+      // Only provide references for entities with NO existing matches.
+      // This forces the LLM to use SPARQL reconnaissance for entities that DO have matches.
       if (results.length === 0) {
-        // No existing matches - provide a placeholder that will require generateId
+        // No existing matches - provide a placeholder that will require generateId.
         acc.push([text, ""]);
       }
-      // If results.length > 0, we intentionally don't provide the reference
-      // This forces the LLM to use SPARQL tool to find the existing ID
+      // If results.length > 0, we intentionally don't provide the reference.
+      // This forces the LLM to use SPARQL tool to find the existing ID.
       return acc;
     }, []);
 }

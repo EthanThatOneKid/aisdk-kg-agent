@@ -28,7 +28,7 @@ export class OramaSearchService implements SearchService {
               score: cur.score,
             });
           } else {
-            // Keep the highest score for this subject
+            // Keep the highest score for this subject.
             const existing = acc.get(key)!;
             if (cur.score > existing.score) {
               existing.score = cur.score;
@@ -87,7 +87,7 @@ export async function restoreOramaTripleStore(
       return await restore("json", jsonIndex) as OramaTripleStore;
     }
   } catch (_error) {
-    // File doesn't exist or is invalid, return null
+    // File doesn't exist or is invalid, return null.
   }
   return null;
 }

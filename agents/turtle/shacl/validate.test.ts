@@ -153,10 +153,6 @@ Deno.test("validateTurtle: generated example against datashapes schema", async (
     graphText: data,
     schemaText: schemaShapes,
   });
-  console.log("Generated example validation:", {
-    isValid: res.isValid,
-    hasError: !!res.errorText,
-  });
   assert(typeof res.isValid === "boolean");
 });
 
@@ -186,10 +182,6 @@ Deno.test("validateTurtle: generated example with bad datatype violates datashap
   const res = await validateTurtle({
     graphText: data,
     schemaText: schemaShapes,
-  });
-  console.log("Generated invalid example validation:", {
-    isValid: res.isValid,
-    hasError: !!res.errorText,
   });
   const error = res.errorText ?? "";
   // The underlying validator may serialize reports with varying detail.

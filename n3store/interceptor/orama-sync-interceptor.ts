@@ -16,41 +16,41 @@ export class OramaSyncInterceptor implements QuadInterceptor {
 
   public async addQuad(quad: Quad): Promise<void> {
     try {
-      // Convert N3 Quad to OramaTriple format
+      // Convert N3 Quad to OramaTriple format.
       const triple: OramaTriple = {
         subject: quad.subject.value,
         predicate: quad.predicate.value,
         object: quad.object.value,
       };
 
-      // Insert into Orama store for search indexing
+      // Insert into Orama store for search indexing.
       await insertTriple(this.oramaStore, triple);
     } catch (error) {
       console.error(
         "OramaSyncInterceptor: Failed to sync quad to Orama store:",
         error,
       );
-      // Don't throw - we want N3 operations to continue even if Orama sync fails
+      // Don't throw - we want N3 operations to continue even if Orama sync fails.
     }
   }
 
   public async removeQuad(quad: Quad): Promise<void> {
     try {
-      // Convert N3 Quad to OramaTriple format
+      // Convert N3 Quad to OramaTriple format.
       const triple: OramaTriple = {
         subject: quad.subject.value,
         predicate: quad.predicate.value,
         object: quad.object.value,
       };
 
-      // Remove from Orama store
+      // Remove from Orama store.
       await removeTriple(this.oramaStore, triple);
     } catch (error) {
       console.error(
         "OramaSyncInterceptor: Failed to remove quad from Orama store:",
         error,
       );
-      // Don't throw - we want N3 operations to continue even if Orama sync fails
+      // Don't throw - we want N3 operations to continue even if Orama sync fails.
     }
   }
 }

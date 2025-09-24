@@ -21,7 +21,7 @@ export function recognizeEntities(text: string): NerEntity[] {
 
   const doc = nlp(text);
 
-  // Extract all entity types
+  // Extract all entity types.
   const topics = doc.topics().json({
     offset: true,
     unique: true,
@@ -36,7 +36,7 @@ export function recognizeEntities(text: string): NerEntity[] {
     unique: true,
   }) as CompromiseEntity[];
 
-  // Helper function to add entity with deduplication
+  // Helper function to add entity with deduplication.
   function addEntity(text: string, type: string, offset: CompromiseOffset) {
     const normalizedText = text.trim().toLowerCase();
     const key = `${normalizedText}:${offset.start}:${offset.length}`;
@@ -51,7 +51,7 @@ export function recognizeEntities(text: string): NerEntity[] {
     }
   }
 
-  // Add entities with deduplication
+  // Add entities with deduplication.
   topics.forEach((topic: CompromiseEntity) =>
     addEntity(topic.text, "topic", topic.offset)
   );

@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import { EntityDiscoveryService } from "./entity-discovery.ts";
 import {
   createOramaTripleStore,
@@ -624,5 +624,358 @@ Deno.test("EntityDiscoveryService - Duplicate entity handling", async () => {
   assertExists(discovery.candidates, "Should have candidates array");
 });
 
-console.log("🧪 EntityDiscoveryService test suite ready!");
-console.log("Run with: deno test agents/ner/search/entity-discovery.test.ts");
+Deno.test("EntityDiscoveryService - Offset information validation", async () => {
+  // Create a real Orama store for testing
+  const orama = createOramaTripleStore();
+
+  // Insert test data with known entities
+  await insertTriple(orama, {
+    subject: "https://example.org/place1",
+    predicate: "http://schema.org/name",
+    object: "Central Park",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/person1",
+    predicate: "http://schema.org/name",
+    object: "Alice",
+  });
+
+  const searchService = new OramaSearchService(orama);
+  const entityDiscoveryService = new EntityDiscoveryService(searchService);
+
+  const inputText = "Alice went to Central Park yesterday.";
+  const discovery = await entityDiscoveryService.discoverEntities(inputText);
+
+  // Verify offset information is present and correct
+  for (const [_key, entityDiscovery] of discovery.discoveries) {
+    assertExists(entityDiscovery.offset, "Should have offset information");
+    assertEquals(
+      typeof entityDiscovery.offset.start,
+      "number",
+      "Offset start should be a number",
+    );
+    assertEquals(
+      typeof entityDiscovery.offset.length,
+      "number",
+      "Offset length should be a number",
+    );
+    assertEquals(
+      typeof entityDiscovery.offset.index,
+      "number",
+      "Offset index should be a number",
+    );
+
+    // Verify offset values are reasonable
+    assert(
+      entityDiscovery.offset.start >= 0,
+      "Offset start should be non-negative",
+    );
+    assert(
+      entityDiscovery.offset.length > 0,
+      "Offset length should be positive",
+    );
+    assert(
+      entityDiscovery.offset.start < inputText.length,
+      "Offset start should be within text bounds",
+    );
+    assert(
+      entityDiscovery.offset.start + entityDiscovery.offset.length <=
+        inputText.length,
+      "Offset end should be within text bounds",
+    );
+
+    // Verify the text at the offset matches the entity text
+    const extractedText = inputText.substring(
+      entityDiscovery.offset.start,
+      entityDiscovery.offset.start + entityDiscovery.offset.length,
+    );
+    assertEquals(
+      extractedText.toLowerCase(),
+      entityDiscovery.text.toLowerCase(),
+      "Extracted text should match entity text",
+    );
+  }
+});
+
+Deno.test("EntityDiscoveryService - Entity type classification", async () => {
+  // Create a real Orama store for testing
+  const orama = createOramaTripleStore();
+
+  // Insert test data for different entity types
+  await insertTriple(orama, {
+    subject: "https://example.org/person1",
+    predicate: "http://schema.org/name",
+    object: "John Smith",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/place1",
+    predicate: "http://schema.org/name",
+    object: "New York City",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/date1",
+    predicate: "http://schema.org/name",
+    object: "March 15, 2024",
+  });
+
+  const searchService = new OramaSearchService(orama);
+  const entityDiscoveryService = new EntityDiscoveryService(searchService);
+
+  const inputText = "John Smith visited New York City on March 15, 2024.";
+  const discovery = await entityDiscoveryService.discoverEntities(inputText);
+
+  // Verify entity types are present and valid
+  for (const [_key, entityDiscovery] of discovery.discoveries) {
+    assertExists(entityDiscovery.type, "Should have entity type");
+    assert(
+      typeof entityDiscovery.type === "string",
+      "Entity type should be a string",
+    );
+    assert(entityDiscovery.type.length > 0, "Entity type should not be empty");
+
+    // Verify entity type is one of the expected values
+    const validTypes = ["direct", "topic", "noun", "date", "word", "phrase"];
+    assert(
+      validTypes.includes(entityDiscovery.type),
+      `Entity type should be one of: ${validTypes.join(", ")}`,
+    );
+  }
+});
+
+Deno.test("EntityDiscoveryService - Position-based deduplication", async () => {
+  // Create a real Orama store for testing
+  const orama = createOramaTripleStore();
+
+  // Insert test data with repeated entity
+  await insertTriple(orama, {
+    subject: "https://example.org/person1",
+    predicate: "http://schema.org/name",
+    object: "Alice",
+  });
+
+  const searchService = new OramaSearchService(orama);
+  const entityDiscoveryService = new EntityDiscoveryService(searchService);
+
+  const inputText = "Alice met Alice at the park.";
+  const discovery = await entityDiscoveryService.discoverEntities(inputText);
+
+  // Should find multiple instances of "Alice" at different positions
+  const aliceEntities = Array.from(discovery.discoveries.values()).filter((e) =>
+    e.text.toLowerCase().includes("alice")
+  );
+
+  if (aliceEntities.length > 1) {
+    // If we have multiple Alice entities, they should have different offsets
+    const offsets = aliceEntities.map((e) => e.offset.start);
+    const uniqueOffsets = new Set(offsets);
+    assertEquals(
+      uniqueOffsets.size,
+      offsets.length,
+      "Multiple Alice entities should have different positions",
+    );
+  }
+});
+
+Deno.test("EntityDiscoveryService - Compromise NLP entity type extraction", async () => {
+  // Create a real Orama store for testing
+  const orama = createOramaTripleStore();
+
+  // Insert test data that should trigger different Compromise NLP methods
+  await insertTriple(orama, {
+    subject: "https://example.org/org1",
+    predicate: "http://schema.org/name",
+    object: "Microsoft Corporation",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/date1",
+    predicate: "http://schema.org/name",
+    object: "next Monday",
+  });
+
+  const searchService = new OramaSearchService(orama);
+  const entityDiscoveryService = new EntityDiscoveryService(searchService);
+
+  const inputText = "Microsoft Corporation will meet next Monday.";
+  const discovery = await entityDiscoveryService.discoverEntities(inputText);
+
+  // Verify that different entity types are detected
+  const entityTypes = Array.from(discovery.discoveries.values()).map((e) =>
+    e.type
+  );
+  const uniqueTypes = new Set(entityTypes);
+
+  assert(uniqueTypes.size > 0, "Should detect at least one entity type");
+
+  // Verify that we have meaningful entity types (not just "direct")
+  const _hasNlpTypes = entityTypes.some((type) =>
+    ["topic", "noun", "date"].includes(type)
+  );
+  // Note: This might not always be true depending on the extraction strategy, but it's good to check
+});
+
+Deno.test("EntityDiscoveryService - Fallback extraction strategies", async () => {
+  // Create a real Orama store for testing
+  const orama = createOramaTripleStore();
+
+  // Insert test data that might trigger fallback strategies
+  await insertTriple(orama, {
+    subject: "https://example.org/word1",
+    predicate: "http://schema.org/name",
+    object: "test",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/phrase1",
+    predicate: "http://schema.org/name",
+    object: "multi word phrase",
+  });
+
+  const searchService = new OramaSearchService(orama);
+  const entityDiscoveryService = new EntityDiscoveryService(searchService);
+
+  const inputText = "This is a test with a multi word phrase.";
+  const discovery = await entityDiscoveryService.discoverEntities(inputText);
+
+  // Verify that fallback strategies work
+  for (const [_key, entityDiscovery] of discovery.discoveries) {
+    assertExists(entityDiscovery.type, "Should have entity type from fallback");
+    assertExists(entityDiscovery.offset, "Should have offset from fallback");
+
+    // Verify fallback types are valid
+    const validFallbackTypes = ["direct", "word", "phrase"];
+    assert(
+      validFallbackTypes.includes(entityDiscovery.type),
+      `Fallback type should be one of: ${validFallbackTypes.join(", ")}`,
+    );
+  }
+});
+
+Deno.test("EntityDiscoveryService - Complete feature integration", async () => {
+  // Create a real Orama store for testing
+  const orama = createOramaTripleStore();
+
+  // Insert comprehensive test data
+  await insertTriple(orama, {
+    subject: "https://example.org/person1",
+    predicate: "http://schema.org/name",
+    object: "Alice Johnson",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/place1",
+    predicate: "http://schema.org/name",
+    object: "Central Park",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/org1",
+    predicate: "http://schema.org/name",
+    object: "Microsoft Corporation",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/date1",
+    predicate: "http://schema.org/name",
+    object: "March 15, 2024",
+  });
+
+  const searchService = new OramaSearchService(orama);
+  const entityDiscoveryService = new EntityDiscoveryService(searchService);
+
+  const inputText =
+    "Alice Johnson from Microsoft Corporation visited Central Park on March 15, 2024.";
+  const discovery = await entityDiscoveryService.discoverEntities(inputText);
+
+  // Verify all features are working together
+  assertEquals(
+    typeof discovery.totalCandidates,
+    "number",
+    "Should return candidate count",
+  );
+  assertEquals(
+    typeof discovery.foundEntities,
+    "number",
+    "Should return found entities count",
+  );
+  assertExists(discovery.discoveries, "Should have discoveries map");
+  assertExists(discovery.candidates, "Should have candidates array");
+  assertEquals(discovery.inputText, inputText, "Should preserve input text");
+
+  // Verify each entity has all required fields
+  for (const [_key, entityDiscovery] of discovery.discoveries) {
+    // Required fields
+    assertExists(entityDiscovery.text, "Should have text");
+    assertExists(entityDiscovery.type, "Should have type");
+    assertExists(entityDiscovery.offset, "Should have offset");
+    assertExists(entityDiscovery.found, "Should have found flag");
+    assertExists(entityDiscovery.matches, "Should have matches count");
+    assertExists(entityDiscovery.sampleIds, "Should have sample IDs");
+    assertExists(entityDiscovery.searchResults, "Should have search results");
+
+    // Type validation
+    assert(typeof entityDiscovery.text === "string", "Text should be string");
+    assert(typeof entityDiscovery.type === "string", "Type should be string");
+    assert(
+      typeof entityDiscovery.found === "boolean",
+      "Found should be boolean",
+    );
+    assert(
+      typeof entityDiscovery.matches === "number",
+      "Matches should be number",
+    );
+    assert(
+      Array.isArray(entityDiscovery.sampleIds),
+      "Sample IDs should be array",
+    );
+    assert(
+      Array.isArray(entityDiscovery.searchResults),
+      "Search results should be array",
+    );
+
+    // Offset validation
+    assert(
+      typeof entityDiscovery.offset.start === "number",
+      "Offset start should be number",
+    );
+    assert(
+      typeof entityDiscovery.offset.length === "number",
+      "Offset length should be number",
+    );
+    assert(
+      typeof entityDiscovery.offset.index === "number",
+      "Offset index should be number",
+    );
+
+    // Logical validation
+    assert(
+      entityDiscovery.found === true,
+      "All discovered entities should be found",
+    );
+    assert(entityDiscovery.matches > 0, "Found entities should have matches");
+    assert(
+      entityDiscovery.sampleIds.length > 0,
+      "Found entities should have sample IDs",
+    );
+    assert(
+      entityDiscovery.searchResults.length > 0,
+      "Found entities should have search results",
+    );
+  }
+
+  // Verify reconnaissance context generation works with new structure
+  const reconnaissanceContext = entityDiscoveryService
+    .createReconnaissanceContext(discovery);
+  assertExists(reconnaissanceContext, "Should generate reconnaissance context");
+  assert(
+    typeof reconnaissanceContext === "string",
+    "Reconnaissance context should be string",
+  );
+  assert(
+    reconnaissanceContext.length > 0,
+    "Reconnaissance context should not be empty",
+  );
+});

@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { QueryEngine } from "@comunica/query-sparql";
 import { DataFactory } from "n3";
-import { addTurtle } from "agents/turtle/add.ts";
+import { insertTurtle } from "agents/turtle/insert.ts";
 import { CustomN3Store } from "./custom-n3store.ts";
 import { CountInterceptor } from "./interceptor/count-interceptor.ts";
 import { ErrorInterceptor } from "./interceptor/error-interceptor.ts";
@@ -689,7 +689,7 @@ ex:person1 rdf:type ex:Person ;
            ex:name "John Doe" ;
            ex:age 30 .
 `;
-  addTurtle(store, turtle);
+  insertTurtle(store, turtle);
 
   // Three triples in the Turtle should result in three intercepted additions.
   assertEquals(countInterceptor.added, 3);

@@ -27,7 +27,7 @@ export function sparqlTool(config: SparqlToolConfig = {}) {
           console.log(`📝 Query: ${query}`);
         }
 
-        // If no sources configured, return empty results
+        // If no sources configured, return empty results.
         if (sources.length === 0) {
           if (verbose) {
             console.log(
@@ -44,7 +44,7 @@ export function sparqlTool(config: SparqlToolConfig = {}) {
           };
         }
 
-        // Execute actual SPARQL query
+        // Execute actual SPARQL query.
         const engine = new QueryEngine();
         const bindingsStream = await engine.queryBindings(query, {
           sources: sources as never, // Type assertion to handle both string URLs and N3 stores
