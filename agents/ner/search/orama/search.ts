@@ -56,6 +56,38 @@ export interface OramaTriple {
   object: string;
 }
 
+export async function createManagedOramaTripleStore(filePath: string) {
+  try {
+    const orama = await restore<OramaTripleStore>(
+      "json",
+      await Deno.readTextFile(filePath),
+    );
+    return {
+      orama,
+      persist: async () => {
+        await Deno.writeTextFile(
+          filePath,
+          JSON.stringify(await persist(orama, "json")),
+        );
+      },
+    };
+  } catch (error) {
+    console.warn(`Failed to restore Orama store from ${filePath}:`, error);
+    const orama = await createOramaTripleStore();
+    return {
+      orama,
+      persist: async () => {
+        const data = await persist(orama, "json");
+        if (typeof data !== "string") {
+          throw new Error("Persisted Orama index is not a string");
+        }
+
+        await Deno.writeTextFile(filePath, data);
+      },
+    };
+  }
+}
+
 export function createOramaTripleStore() {
   return create({
     schema: {
@@ -64,32 +96,6 @@ export function createOramaTripleStore() {
       object: "string",
     },
   });
-}
-
-const defaultFilePath = "./orama.json";
-
-export async function saveOramaTripleStore(
-  orama: OramaTripleStore,
-  filePath: string = defaultFilePath,
-): Promise<void> {
-  // Use the official Orama persistence plugin.
-  const jsonIndex = await persist(orama, "json");
-  await Deno.writeTextFile(filePath, JSON.stringify(jsonIndex, null, 2));
-}
-
-export async function restoreOramaTripleStore(
-  filePath: string = defaultFilePath,
-): Promise<OramaTripleStore | null> {
-  try {
-    const data = await Deno.readTextFile(filePath);
-    if (data.trim()) {
-      const jsonIndex = JSON.parse(data);
-      return await restore("json", jsonIndex) as OramaTripleStore;
-    }
-  } catch (_error) {
-    // File doesn't exist or is invalid, return null.
-  }
-  return null;
 }
 
 export async function insertTriple(

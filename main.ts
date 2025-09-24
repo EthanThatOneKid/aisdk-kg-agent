@@ -3,10 +3,8 @@ import { Writer } from "n3";
 import { generateTurtle } from "agents/turtle/generate.ts";
 import { EntityDiscoveryService } from "agents/ner/search/entity-discovery.ts";
 import {
-  createOramaTripleStore,
+  createManagedOramaTripleStore,
   OramaSearchService,
-  restoreOramaTripleStore,
-  saveOramaTripleStore,
 } from "agents/ner/search/orama/search.ts";
 import { CustomN3Store } from "./n3store/custom-n3store.ts";
 import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
@@ -15,18 +13,17 @@ import schemaShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
   type: "text",
 };
 
+const config = {
+  oramaPath: "./orama.json",
+  tripleStorePath: "./db.ttl",
+};
+
 if (import.meta.main) {
   try {
     const model = google("models/gemini-2.5-flash");
-
-    // Try to restore existing Orama database, or create new one.
-    let orama = await restoreOramaTripleStore("./orama.json");
-    if (!orama) {
-      orama = createOramaTripleStore();
-      console.log("Created new Orama database");
-    } else {
-      console.log("Restored existing Orama database");
-    }
+    const { orama, persist } = await createManagedOramaTripleStore(
+      config.oramaPath,
+    );
 
     const searchService = new OramaSearchService(orama);
 
@@ -49,9 +46,6 @@ if (import.meta.main) {
     }
 
     console.log(`Orama store synchronized with N3 store`);
-
-    console.log("Processing text...");
-
     const inputText =
       "I met up with Kyle at the Lost Bean cafe yesterday in the morning.";
 
@@ -125,7 +119,7 @@ if (import.meta.main) {
     console.log(`Saved ${n3Store.size} triples to db.ttl`);
 
     // Save the Orama database for persistence.
-    await saveOramaTripleStore(orama, "./orama.json");
+    await persist();
     console.log("Saved Orama database to orama.json");
   } catch (error) {
     console.error("=== ERROR DETAILS ===");
