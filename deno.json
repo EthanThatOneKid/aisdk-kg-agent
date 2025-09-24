@@ -8,7 +8,7 @@
   "imports": {
     "@orama/plugin-data-persistence": "npm:@orama/plugin-data-persistence@^3.1.14",
     "agents/": "./agents/",
-    "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.15",
+    "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.16",
     "@comunica/query-sparql": "npm:@comunica/query-sparql@^4.4.0",
     "@comunica/types": "npm:@comunica/types@^4.4.0",
     "@comunica/utils-expression-evaluator": "npm:@comunica/utils-expression-evaluator@^4.4.0",
@@ -16,7 +16,7 @@
     "@rdfjs/types": "npm:@rdfjs/types@^2.0.1",
     "@std/assert": "jsr:@std/assert@^1.0.14",
     "@types/n3": "npm:@types/n3@^1.26.0",
-    "ai": "npm:ai@^5.0.48",
+    "ai": "npm:ai@^5.0.51",
     "compromise": "npm:compromise@^14.14.4",
     "compromise-dates": "npm:compromise-dates@^3.7.1",
     "n3": "npm:n3@^1.26.0",

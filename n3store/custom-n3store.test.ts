@@ -732,3 +732,946 @@ Deno.test("Interceptor error handling with SPARQL operations", async () => {
     "ErrorInterceptor: addQuad failed",
   );
 });
+
+Deno.test("DatasetCore alias methods", async (t) => {
+  const subject = DataFactory.namedNode("http://example.org/person1");
+  const predicate = DataFactory.namedNode(
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+  );
+  const object = DataFactory.namedNode("http://example.org/Person");
+  const graph = DataFactory.defaultGraph();
+  const quad = DataFactory.quad(subject, predicate, object, graph);
+
+  await t.step("add() alias should work like addQuad()", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+
+    // Test the add() alias
+    const result = store.add(quad);
+
+    // Should return the store instance for chaining
+    assertEquals(result, store);
+    // Should trigger interceptors
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(countInterceptor.removed, 0);
+    // Should increase store size
+    assertEquals(store.size, 1);
+  });
+
+  await t.step("delete() alias should work like removeQuad()", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+
+    // First add the quad
+    store.addQuad(quad);
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(store.size, 1);
+
+    // Test the delete() alias
+    const result = store.delete(quad);
+
+    // Should return the store instance for chaining
+    assertEquals(result, store);
+    // Should trigger interceptors
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(countInterceptor.removed, 1);
+    // Should decrease store size
+    assertEquals(store.size, 0);
+  });
+
+  await t.step("has() alias should work correctly", () => {
+    const store = new CustomN3Store();
+
+    // Initially should not have the quad
+    assertEquals(store.has(quad), false);
+
+    // Add the quad
+    store.addQuad(quad);
+    assertEquals(store.size, 1);
+
+    // Now should have the quad
+    assertEquals(store.has(quad), true);
+
+    // Remove the quad
+    store.removeQuad(quad);
+    assertEquals(store.size, 0);
+
+    // Should not have the quad anymore
+    assertEquals(store.has(quad), false);
+  });
+
+  await t.step("match() alias should return DatasetCore", () => {
+    const store = new CustomN3Store();
+
+    // Add some test data
+    const quad1 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/person1"),
+      DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+      DataFactory.namedNode("http://example.org/Person"),
+      DataFactory.defaultGraph(),
+    );
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/person1"),
+      DataFactory.namedNode("http://example.org/name"),
+      DataFactory.literal("John Doe"),
+      DataFactory.defaultGraph(),
+    );
+    const quad3 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/person2"),
+      DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+      DataFactory.namedNode("http://example.org/Person"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.addQuad(quad1);
+    store.addQuad(quad2);
+    store.addQuad(quad3);
+    assertEquals(store.size, 3);
+
+    // Test match() with subject filter
+    const matches = store.match(subject);
+    assertEquals(matches.size, 2); // Should match quad1 and quad2
+
+    // Test match() with predicate filter
+    const typeMatches = store.match(
+      undefined,
+      DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+    );
+    assertEquals(typeMatches.size, 2); // Should match quad1 and quad3
+
+    // Test match() with no filters (should return all)
+    const allMatches = store.match();
+    assertEquals(allMatches.size, 3);
+  });
+
+  await t.step("Symbol.iterator alias should work correctly", () => {
+    const store = new CustomN3Store();
+
+    // Add some test data
+    const quad1 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/person1"),
+      DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+      DataFactory.namedNode("http://example.org/Person"),
+      DataFactory.defaultGraph(),
+    );
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/person1"),
+      DataFactory.namedNode("http://example.org/name"),
+      DataFactory.literal("John Doe"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.addQuad(quad1);
+    store.addQuad(quad2);
+    assertEquals(store.size, 2);
+
+    // Test Symbol.iterator
+    const quads = Array.from(store);
+    assertEquals(quads.length, 2);
+    assertEquals(quads[0], quad1);
+    assertEquals(quads[1], quad2);
+  });
+
+  await t.step("DatasetCore methods should work with interceptors", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+
+    // Test add() with interceptors
+    store.add(quad);
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(countInterceptor.removed, 0);
+
+    // Test delete() with interceptors
+    store.delete(quad);
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(countInterceptor.removed, 1);
+  });
+
+  await t.step(
+    "DatasetCore methods should work with multiple interceptors",
+    () => {
+      const countInterceptor1 = new CountInterceptor();
+      const countInterceptor2 = new CountInterceptor();
+      const store = new CustomN3Store([countInterceptor1, countInterceptor2]);
+
+      // Test add() with multiple interceptors
+      store.add(quad);
+      assertEquals(countInterceptor1.added, 1);
+      assertEquals(countInterceptor1.removed, 0);
+      assertEquals(countInterceptor2.added, 1);
+      assertEquals(countInterceptor2.removed, 0);
+
+      // Test delete() with multiple interceptors
+      store.delete(quad);
+      assertEquals(countInterceptor1.added, 1);
+      assertEquals(countInterceptor1.removed, 1);
+      assertEquals(countInterceptor2.added, 1);
+      assertEquals(countInterceptor2.removed, 1);
+    },
+  );
+
+  await t.step("DatasetCore methods should handle chaining", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+
+    const quad1 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/person1"),
+      DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+      DataFactory.namedNode("http://example.org/Person"),
+      DataFactory.defaultGraph(),
+    );
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/person1"),
+      DataFactory.namedNode("http://example.org/name"),
+      DataFactory.literal("John Doe"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Test chaining add() calls
+    const result = store.add(quad1).add(quad2);
+    assertEquals(result, store);
+    assertEquals(countInterceptor.added, 2);
+    assertEquals(store.size, 2);
+
+    // Test chaining delete() calls
+    const deleteResult = store.delete(quad1).delete(quad2);
+    assertEquals(deleteResult, store);
+    assertEquals(countInterceptor.removed, 2);
+    assertEquals(store.size, 0);
+  });
+
+  await t.step(
+    "DatasetCore methods should work with different graph contexts",
+    () => {
+      const store = new CustomN3Store();
+
+      const graph1 = DataFactory.namedNode("http://example.org/graph1");
+      const graph2 = DataFactory.namedNode("http://example.org/graph2");
+
+      const quad1 = DataFactory.quad(subject, predicate, object, graph1);
+      const quad2 = DataFactory.quad(subject, predicate, object, graph2);
+
+      // Add quads to different graphs
+      store.add(quad1);
+      store.add(quad2);
+      assertEquals(store.size, 2);
+
+      // Test has() with specific graph
+      assertEquals(store.has(quad1), true);
+      assertEquals(store.has(quad2), true);
+
+      // Test match() with specific graph
+      const graph1Matches = store.match(
+        undefined,
+        undefined,
+        undefined,
+        graph1,
+      );
+      assertEquals(graph1Matches.size, 1);
+
+      const graph2Matches = store.match(
+        undefined,
+        undefined,
+        undefined,
+        graph2,
+      );
+      assertEquals(graph2Matches.size, 1);
+
+      // Test delete() with specific graph
+      store.delete(quad1);
+      assertEquals(store.size, 1);
+      assertEquals(store.has(quad1), false);
+      assertEquals(store.has(quad2), true);
+    },
+  );
+
+  await t.step("DatasetCore methods should work with blank nodes", () => {
+    const store = new CustomN3Store();
+
+    const blankNode = DataFactory.blankNode("b1");
+    const quad = DataFactory.quad(subject, predicate, blankNode, graph);
+
+    // Test add() with blank node
+    store.add(quad);
+    assertEquals(store.size, 1);
+
+    // Test has() with blank node
+    assertEquals(store.has(quad), true);
+
+    // Test match() with blank node
+    const matches = store.match(subject, predicate, blankNode);
+    assertEquals(matches.size, 1);
+
+    // Test delete() with blank node
+    store.delete(quad);
+    assertEquals(store.size, 0);
+    assertEquals(store.has(quad), false);
+  });
+
+  await t.step("DatasetCore methods should work with literals", () => {
+    const store = new CustomN3Store();
+
+    const literal = DataFactory.literal("John Doe");
+    const quad = DataFactory.quad(subject, predicate, literal, graph);
+
+    // Test add() with literal
+    store.add(quad);
+    assertEquals(store.size, 1);
+
+    // Test has() with literal
+    assertEquals(store.has(quad), true);
+
+    // Test match() with literal
+    const matches = store.match(subject, predicate, literal);
+    assertEquals(matches.size, 1);
+
+    // Test delete() with literal
+    store.delete(quad);
+    assertEquals(store.size, 0);
+    assertEquals(store.has(quad), false);
+  });
+
+  await t.step("DatasetCore methods should work with typed literals", () => {
+    const store = new CustomN3Store();
+
+    const typedLiteral = DataFactory.literal(
+      "30",
+      DataFactory.namedNode("http://www.w3.org/2001/XMLSchema#integer"),
+    );
+    const quad = DataFactory.quad(subject, predicate, typedLiteral, graph);
+
+    // Test add() with typed literal
+    store.add(quad);
+    assertEquals(store.size, 1);
+
+    // Test has() with typed literal
+    assertEquals(store.has(quad), true);
+
+    // Test match() with typed literal
+    const matches = store.match(subject, predicate, typedLiteral);
+    assertEquals(matches.size, 1);
+
+    // Test delete() with typed literal
+    store.delete(quad);
+    assertEquals(store.size, 0);
+    assertEquals(store.has(quad), false);
+  });
+
+  await t.step(
+    "DatasetCore methods should work with language-tagged literals",
+    () => {
+      const store = new CustomN3Store();
+
+      const langLiteral = DataFactory.literal("John Doe", "en");
+      const quad = DataFactory.quad(subject, predicate, langLiteral, graph);
+
+      // Test add() with language-tagged literal
+      store.add(quad);
+      assertEquals(store.size, 1);
+
+      // Test has() with language-tagged literal
+      assertEquals(store.has(quad), true);
+
+      // Test match() with language-tagged literal
+      const matches = store.match(subject, predicate, langLiteral);
+      assertEquals(matches.size, 1);
+
+      // Test delete() with language-tagged literal
+      store.delete(quad);
+      assertEquals(store.size, 0);
+      assertEquals(store.has(quad), false);
+    },
+  );
+});
+
+Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
+  await t.step("Constructor with no interceptors", () => {
+    const store = new CustomN3Store();
+    assertEquals(store.size, 0);
+    // Test that interceptors array is empty
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad);
+    assertEquals(store.size, 1);
+  });
+
+  await t.step("Constructor with empty interceptors array", () => {
+    const store = new CustomN3Store([]);
+    assertEquals(store.size, 0);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad);
+    assertEquals(store.size, 1);
+  });
+
+  await t.step("addQuad with successful result", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    const result = store.addQuad(quad);
+    assertEquals(result, true);
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(countInterceptor.removed, 0);
+    assertEquals(store.size, 1);
+  });
+
+  await t.step("addQuad with failed result (duplicate)", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Add the quad first time
+    const result1 = store.addQuad(quad);
+    assertEquals(result1, true);
+    assertEquals(countInterceptor.added, 1);
+
+    // Try to add the same quad again (should fail)
+    const result2 = store.addQuad(quad);
+    assertEquals(result2, false);
+    assertEquals(countInterceptor.added, 1); // Should not increment
+    assertEquals(store.size, 1);
+  });
+
+  await t.step("removeQuad with successful result", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Add the quad first
+    store.addQuad(quad);
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(store.size, 1);
+
+    // Remove the quad
+    const result = store.removeQuad(quad);
+    assertEquals(result, true);
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(countInterceptor.removed, 1);
+    assertEquals(store.size, 0);
+  });
+
+  await t.step("removeQuad with failed result (quad not found)", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Try to remove a quad that doesn't exist
+    const result = store.removeQuad(quad);
+    assertEquals(result, false);
+    assertEquals(countInterceptor.added, 0);
+    assertEquals(countInterceptor.removed, 0);
+    assertEquals(store.size, 0);
+  });
+
+  await t.step("notifyInterceptors with no interceptors", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Should not throw any errors
+    store.addQuad(quad);
+    assertEquals(store.size, 1);
+  });
+
+  await t.step("notifyInterceptors with single interceptor success", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.addQuad(quad);
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(countInterceptor.removed, 0);
+  });
+
+  await t.step("notifyInterceptors with single interceptor error", () => {
+    const errorInterceptor = new ErrorInterceptor();
+    const store = new CustomN3Store([errorInterceptor]);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Should not throw, but should log error
+    store.addQuad(quad);
+    assertEquals(store.size, 1);
+    assertEquals(errorInterceptor.getErrorCount(), 1);
+  });
+
+  await t.step(
+    "notifyInterceptors with multiple interceptors - all success",
+    () => {
+      const countInterceptor1 = new CountInterceptor();
+      const countInterceptor2 = new CountInterceptor();
+      const store = new CustomN3Store([countInterceptor1, countInterceptor2]);
+      const quad = DataFactory.quad(
+        DataFactory.namedNode("http://example.org/test"),
+        DataFactory.namedNode("http://example.org/predicate"),
+        DataFactory.literal("test"),
+        DataFactory.defaultGraph(),
+      );
+
+      store.addQuad(quad);
+      assertEquals(countInterceptor1.added, 1);
+      assertEquals(countInterceptor2.added, 1);
+      assertEquals(store.size, 1);
+    },
+  );
+
+  await t.step(
+    "notifyInterceptors with multiple interceptors - mixed success/error",
+    () => {
+      const countInterceptor = new CountInterceptor();
+      const errorInterceptor = new ErrorInterceptor();
+      const store = new CustomN3Store([countInterceptor, errorInterceptor]);
+      const quad = DataFactory.quad(
+        DataFactory.namedNode("http://example.org/test"),
+        DataFactory.namedNode("http://example.org/predicate"),
+        DataFactory.literal("test"),
+        DataFactory.defaultGraph(),
+      );
+
+      store.addQuad(quad);
+      assertEquals(countInterceptor.added, 1);
+      assertEquals(errorInterceptor.getErrorCount(), 1);
+      assertEquals(store.size, 1);
+    },
+  );
+
+  await t.step(
+    "notifyInterceptors with multiple interceptors - all error",
+    () => {
+      const errorInterceptor1 = new ErrorInterceptor();
+      const errorInterceptor2 = new ErrorInterceptor();
+      const store = new CustomN3Store([errorInterceptor1, errorInterceptor2]);
+      const quad = DataFactory.quad(
+        DataFactory.namedNode("http://example.org/test"),
+        DataFactory.namedNode("http://example.org/predicate"),
+        DataFactory.literal("test"),
+        DataFactory.defaultGraph(),
+      );
+
+      store.addQuad(quad);
+      assertEquals(errorInterceptor1.getErrorCount(), 1);
+      assertEquals(errorInterceptor2.getErrorCount(), 1);
+      assertEquals(store.size, 1);
+    },
+  );
+
+  await t.step("addInterceptor adds interceptor to array", () => {
+    const store = new CustomN3Store();
+    const countInterceptor = new CountInterceptor();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Initially no interceptors
+    store.addQuad(quad);
+    assertEquals(store.size, 1);
+
+    // Add interceptor
+    store.addInterceptor(countInterceptor);
+    store.addQuad(quad); // Add duplicate (should fail but trigger interceptor)
+    assertEquals(countInterceptor.added, 0); // addQuad failed, so no interceptor call
+    assertEquals(store.size, 1);
+
+    // Add a new quad to trigger interceptor
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test2"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test2"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad2);
+    assertEquals(countInterceptor.added, 1);
+    assertEquals(store.size, 2);
+  });
+
+  await t.step("removeInterceptor removes existing interceptor", () => {
+    const countInterceptor = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor]);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Initially interceptor is active
+    store.addQuad(quad);
+    assertEquals(countInterceptor.added, 1);
+
+    // Remove interceptor
+    store.removeInterceptor(countInterceptor);
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test2"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test2"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad2);
+    assertEquals(countInterceptor.added, 1); // Should not increment
+    assertEquals(store.size, 2);
+  });
+
+  await t.step("removeInterceptor with non-existent interceptor", () => {
+    const countInterceptor1 = new CountInterceptor();
+    const countInterceptor2 = new CountInterceptor();
+    const store = new CustomN3Store([countInterceptor1]);
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    // Try to remove interceptor that's not in the array
+    store.removeInterceptor(countInterceptor2);
+    store.addQuad(quad);
+    assertEquals(countInterceptor1.added, 1);
+    assertEquals(countInterceptor2.added, 0);
+    assertEquals(store.size, 1);
+  });
+
+  await t.step("match with empty store", () => {
+    const store = new CustomN3Store();
+    const matches = store.match();
+    assertEquals(matches.size, 0);
+  });
+
+  await t.step("match with null parameters", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad);
+
+    const matches = store.match(null, null, null, null);
+    assertEquals(matches.size, 1);
+  });
+
+  await t.step("match with undefined parameters", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad);
+
+    const matches = store.match(undefined, undefined, undefined, undefined);
+    assertEquals(matches.size, 1);
+  });
+
+  await t.step("match with mixed null/undefined parameters", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad);
+
+    const matches = store.match(null, undefined, null, undefined);
+    assertEquals(matches.size, 1);
+  });
+
+  await t.step("match with specific subject filter", () => {
+    const store = new CustomN3Store();
+    const subject1 = DataFactory.namedNode("http://example.org/test1");
+    const subject2 = DataFactory.namedNode("http://example.org/test2");
+    const predicate = DataFactory.namedNode("http://example.org/predicate");
+    const object = DataFactory.literal("test");
+    const graph = DataFactory.defaultGraph();
+
+    const quad1 = DataFactory.quad(subject1, predicate, object, graph);
+    const quad2 = DataFactory.quad(subject2, predicate, object, graph);
+    store.addQuad(quad1);
+    store.addQuad(quad2);
+
+    const matches = store.match(subject1);
+    assertEquals(matches.size, 1);
+  });
+
+  await t.step("match with specific predicate filter", () => {
+    const store = new CustomN3Store();
+    const subject = DataFactory.namedNode("http://example.org/test");
+    const predicate1 = DataFactory.namedNode("http://example.org/predicate1");
+    const predicate2 = DataFactory.namedNode("http://example.org/predicate2");
+    const object = DataFactory.literal("test");
+    const graph = DataFactory.defaultGraph();
+
+    const quad1 = DataFactory.quad(subject, predicate1, object, graph);
+    const quad2 = DataFactory.quad(subject, predicate2, object, graph);
+    store.addQuad(quad1);
+    store.addQuad(quad2);
+
+    const matches = store.match(undefined, predicate1);
+    assertEquals(matches.size, 1);
+  });
+
+  await t.step("match with specific object filter", () => {
+    const store = new CustomN3Store();
+    const subject = DataFactory.namedNode("http://example.org/test");
+    const predicate = DataFactory.namedNode("http://example.org/predicate");
+    const object1 = DataFactory.literal("test1");
+    const object2 = DataFactory.literal("test2");
+    const graph = DataFactory.defaultGraph();
+
+    const quad1 = DataFactory.quad(subject, predicate, object1, graph);
+    const quad2 = DataFactory.quad(subject, predicate, object2, graph);
+    store.addQuad(quad1);
+    store.addQuad(quad2);
+
+    const matches = store.match(undefined, undefined, object1);
+    assertEquals(matches.size, 1);
+  });
+
+  await t.step("match with specific graph filter", () => {
+    const store = new CustomN3Store();
+    const subject = DataFactory.namedNode("http://example.org/test");
+    const predicate = DataFactory.namedNode("http://example.org/predicate");
+    const object = DataFactory.literal("test");
+    const graph1 = DataFactory.namedNode("http://example.org/graph1");
+    const graph2 = DataFactory.namedNode("http://example.org/graph2");
+
+    const quad1 = DataFactory.quad(subject, predicate, object, graph1);
+    const quad2 = DataFactory.quad(subject, predicate, object, graph2);
+    store.addQuad(quad1);
+    store.addQuad(quad2);
+
+    const matches = store.match(undefined, undefined, undefined, graph1);
+    assertEquals(matches.size, 1);
+  });
+
+  await t.step("match with multiple filters", () => {
+    const store = new CustomN3Store();
+    const subject1 = DataFactory.namedNode("http://example.org/test1");
+    const subject2 = DataFactory.namedNode("http://example.org/test2");
+    const predicate1 = DataFactory.namedNode("http://example.org/predicate1");
+    const predicate2 = DataFactory.namedNode("http://example.org/predicate2");
+    const object = DataFactory.literal("test");
+    const graph = DataFactory.defaultGraph();
+
+    const quad1 = DataFactory.quad(subject1, predicate1, object, graph);
+    const quad2 = DataFactory.quad(subject1, predicate2, object, graph);
+    const quad3 = DataFactory.quad(subject2, predicate1, object, graph);
+    store.addQuad(quad1);
+    store.addQuad(quad2);
+    store.addQuad(quad3);
+
+    const matches = store.match(subject1, predicate1);
+    assertEquals(matches.size, 1);
+  });
+
+  await t.step("match with no matching quads", () => {
+    const store = new CustomN3Store();
+    const subject = DataFactory.namedNode("http://example.org/test");
+    const predicate = DataFactory.namedNode("http://example.org/predicate");
+    const object = DataFactory.literal("test");
+    const graph = DataFactory.defaultGraph();
+
+    const quad = DataFactory.quad(subject, predicate, object, graph);
+    store.addQuad(quad);
+
+    const nonExistentSubject = DataFactory.namedNode(
+      "http://example.org/nonexistent",
+    );
+    const matches = store.match(nonExistentSubject);
+    assertEquals(matches.size, 0);
+  });
+
+  await t.step("Symbol.iterator with empty store", () => {
+    const store = new CustomN3Store();
+    const quads = Array.from(store);
+    assertEquals(quads.length, 0);
+  });
+
+  await t.step("Symbol.iterator with single quad", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad);
+
+    const quads = Array.from(store);
+    assertEquals(quads.length, 1);
+    assertEquals(quads[0], quad);
+  });
+
+  await t.step("Symbol.iterator with multiple quads", () => {
+    const store = new CustomN3Store();
+    const quad1 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test1"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test1"),
+      DataFactory.defaultGraph(),
+    );
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test2"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test2"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad1);
+    store.addQuad(quad2);
+
+    const quads = Array.from(store);
+    assertEquals(quads.length, 2);
+    // Order may vary, so check that both quads are present
+    const quadIds = quads.map((q) => q.subject.value);
+    assertEquals(quadIds.includes("http://example.org/test1"), true);
+    assertEquals(quadIds.includes("http://example.org/test2"), true);
+  });
+
+  await t.step("size property access", () => {
+    const store = new CustomN3Store();
+    assertEquals(store.size, 0);
+
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad);
+    assertEquals(store.size, 1);
+
+    store.removeQuad(quad);
+    assertEquals(store.size, 0);
+  });
+
+  await t.step("DatasetCore add method chaining", () => {
+    const store = new CustomN3Store();
+    const quad1 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test1"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test1"),
+      DataFactory.defaultGraph(),
+    );
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test2"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test2"),
+      DataFactory.defaultGraph(),
+    );
+
+    const result = store.add(quad1).add(quad2);
+    assertEquals(result, store);
+    assertEquals(store.size, 2);
+  });
+
+  await t.step("DatasetCore delete method chaining", () => {
+    const store = new CustomN3Store();
+    const quad1 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test1"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test1"),
+      DataFactory.defaultGraph(),
+    );
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test2"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test2"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.add(quad1);
+    store.add(quad2);
+    assertEquals(store.size, 2);
+
+    const result = store.delete(quad1).delete(quad2);
+    assertEquals(result, store);
+    assertEquals(store.size, 0);
+  });
+
+  await t.step("DatasetCore has method with non-existent quad", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    assertEquals(store.has(quad), false);
+  });
+
+  await t.step("DatasetCore has method with existing quad", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.add(quad);
+    assertEquals(store.has(quad), true);
+  });
+
+  await t.step("DatasetCore has method after quad removal", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.add(quad);
+    assertEquals(store.has(quad), true);
+    store.delete(quad);
+    assertEquals(store.has(quad), false);
+  });
+});

@@ -1,12 +1,11 @@
 import { google } from "@ai-sdk/google";
-import { Writer } from "n3";
 import { generateTurtle } from "agents/turtle/generate.ts";
 import { EntityDiscoveryService } from "agents/ner/search/entity-discovery.ts";
 import {
   createManagedOramaTripleStore,
   OramaSearchService,
 } from "agents/ner/search/orama/search.ts";
-import { CustomN3Store } from "./n3store/custom-n3store.ts";
+import { createManagedN3Store } from "./n3store/custom-n3store.ts";
 import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
 import { insertTurtle } from "agents/turtle/insert.ts";
 import schemaShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
@@ -21,29 +20,20 @@ const config = {
 if (import.meta.main) {
   try {
     const model = google("models/gemini-2.5-flash");
-    const { orama, persist } = await createManagedOramaTripleStore(
-      config.oramaPath,
-    );
+    const { orama, persist: persistOrama } =
+      await createManagedOramaTripleStore(config.oramaPath);
 
     const searchService = new OramaSearchService(orama);
 
-    // Create a CustomN3Store for SPARQL queries.
-    const n3Store = new CustomN3Store();
+    // Create a managed N3Store for SPARQL queries.
+    const { store: n3Store, persist: persistN3Store } =
+      await createManagedN3Store(config.tripleStorePath);
 
     // Create an interceptor to sync N3 store changes with Orama store.
     const oramaSyncInterceptor = new OramaSyncInterceptor(orama);
     n3Store.addInterceptor(oramaSyncInterceptor);
 
-    // Try to restore existing data from db.ttl.
-    try {
-      const existingData = await Deno.readTextFile("./db.ttl");
-      if (existingData.trim()) {
-        insertTurtle(n3Store, existingData);
-        console.log(`Restored ${n3Store.size} triples from db.ttl`);
-      }
-    } catch (_error) {
-      console.log("No existing db.ttl found, starting with fresh data");
-    }
+    console.log(`Restored ${n3Store.size} triples from db.ttl`);
 
     console.log(`Orama store synchronized with N3 store`);
     const inputText =
@@ -106,20 +96,11 @@ if (import.meta.main) {
     );
 
     // Save the N3 store to db.ttl for persistence.
-    const writer = new Writer({ format: "Turtle" });
-    n3Store.forEach((quad) => writer.addQuad(quad));
-    const dbTurtle = await new Promise<string>((resolve, reject) => {
-      writer.end((error, result) => {
-        if (error) reject(error);
-        else resolve(result);
-      });
-    });
-
-    await Deno.writeTextFile("./db.ttl", dbTurtle);
+    await persistN3Store();
     console.log(`Saved ${n3Store.size} triples to db.ttl`);
 
     // Save the Orama database for persistence.
-    await persist();
+    await persistOrama();
     console.log("Saved Orama database to orama.json");
   } catch (error) {
     console.error("=== ERROR DETAILS ===");
