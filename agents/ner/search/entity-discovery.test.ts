@@ -146,20 +146,126 @@ Deno.test("EntityDiscoveryService - Reconnaissance context generation", async ()
     .createReconnaissanceContext(discovery);
 
   // Verify reconnaissance context contains expected elements
+  assertExists(
+    reconnaissanceContext,
+    "Should have reconnaissance context when entities are found",
+  );
   assertEquals(
-    reconnaissanceContext.includes("ENTITY DISCOVERY RESULTS"),
+    reconnaissanceContext!.includes(
+      "Found entities in existing knowledge graph",
+    ),
     true,
     "Should include discovery results header",
   );
   assertEquals(
-    reconnaissanceContext.includes("SPARQL RECONNAISSANCE REQUIRED"),
+    reconnaissanceContext!.includes(
+      "Query these entities using their exact IDs",
+    ),
     true,
-    "Should include SPARQL requirement",
+    "Should include query instructions",
   );
   assertEquals(
-    reconnaissanceContext.includes("SELECT ?s ?p ?o WHERE"),
+    reconnaissanceContext!.includes("SELECT ?p ?o WHERE"),
     true,
     "Should include example SPARQL queries",
+  );
+  // Verify that SPARQL queries use specific entity IDs, not text search
+  assertEquals(
+    reconnaissanceContext!.includes("https://example.org/person1"),
+    true,
+    "Should include specific entity IDs in SPARQL queries",
+  );
+  assertEquals(
+    reconnaissanceContext!.includes("CONTAINS"),
+    false,
+    "Should NOT use text search functions like CONTAINS in SPARQL",
+  );
+  assertEquals(
+    reconnaissanceContext!.includes("regex"),
+    false,
+    "Should NOT use regex functions in SPARQL",
+  );
+});
+
+Deno.test("EntityDiscoveryService - SPARQL reconnaissance uses entity IDs not text search", async () => {
+  // Create a real Orama store for testing
+  const orama = createOramaTripleStore();
+
+  // Insert test data with known entity IDs
+  await insertTriple(orama, {
+    subject: "https://example.org/person1",
+    predicate: "http://schema.org/name",
+    object: "Kyle",
+  });
+
+  await insertTriple(orama, {
+    subject: "https://example.org/place1",
+    predicate: "http://schema.org/name",
+    object: "Central Park",
+  });
+
+  const searchService = new OramaSearchService(orama);
+  const entityDiscoveryService = new EntityDiscoveryService(searchService);
+
+  const inputText = "I met Kyle at Central Park.";
+  const discovery = await entityDiscoveryService.discoverEntities(inputText);
+  const reconnaissanceContext = entityDiscoveryService
+    .createReconnaissanceContext(discovery);
+
+  // Verify reconnaissance context exists
+  assertExists(
+    reconnaissanceContext,
+    "Should have reconnaissance context when entities are found",
+  );
+
+  // Verify SPARQL queries use direct entity ID lookups
+  const hasDirectIdQueries =
+    reconnaissanceContext!.includes("<https://example.org/person1>") ||
+    reconnaissanceContext!.includes("<https://example.org/place1>");
+  assertEquals(
+    hasDirectIdQueries,
+    true,
+    "Should include direct entity ID queries in SPARQL examples",
+  );
+
+  // Verify no text search functions are used
+  const hasTextSearch =
+    reconnaissanceContext!.toLowerCase().includes("contains") ||
+    reconnaissanceContext!.toLowerCase().includes("regex") ||
+    reconnaissanceContext!.toLowerCase().includes("filter");
+  assertEquals(
+    hasTextSearch,
+    false,
+    "Should NOT use text search functions in SPARQL reconnaissance",
+  );
+
+  // Verify the queries are structured for direct ID lookup
+  const hasDirectLookup = reconnaissanceContext!.includes("?p ?o WHERE { <") ||
+    reconnaissanceContext!.includes("SELECT ?p ?o WHERE");
+  assertEquals(
+    hasDirectLookup,
+    true,
+    "Should use direct property lookup patterns with specific entity IDs",
+  );
+
+  // Verify the context includes entity IDs and query examples
+  const hasEntityIds =
+    reconnaissanceContext!.includes("https://example.org/person1") ||
+    reconnaissanceContext!.includes("IDs:");
+  assertEquals(
+    hasEntityIds,
+    true,
+    "Should include entity IDs in the context",
+  );
+
+  // Verify query examples are provided
+  const hasQueryExamples = reconnaissanceContext!.includes(
+    "SELECT ?p ?o WHERE",
+  );
+  assertEquals(
+    hasQueryExamples,
+    true,
+    "Should include SPARQL query examples",
   );
 });
 
@@ -186,9 +292,9 @@ Deno.test("EntityDiscoveryService - No entities found scenario", async () => {
     "Should have 0 found entities when no entities found",
   );
   assertEquals(
-    reconnaissanceContext.includes("No existing entities found"),
-    true,
-    "Should indicate no entities found",
+    reconnaissanceContext,
+    null,
+    "Should return null when no entities found",
   );
 });
 

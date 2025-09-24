@@ -27,6 +27,28 @@ export function sparqlTool(config: SparqlToolConfig = {}) {
           console.log(`📝 Query: ${query}`);
         }
 
+        // Validate that the query uses direct entity ID lookups, not text search
+        const hasTextSearch = query.toLowerCase().includes("schema:name") ||
+          query.toLowerCase().includes("contains") ||
+          query.toLowerCase().includes("regex") ||
+          query.toLowerCase().includes("filter");
+
+        if (hasTextSearch) {
+          const errorMsg =
+            "SPARQL reconnaissance must use direct entity ID lookups, not text search. Use the exact entity IDs provided in the reconnaissance context.";
+          if (verbose) {
+            console.log(errorMsg);
+          }
+          return {
+            success: false,
+            purpose,
+            query,
+            results: [],
+            count: 0,
+            error: errorMsg,
+          };
+        }
+
         // If no sources configured, return empty results.
         if (sources.length === 0) {
           if (verbose) {

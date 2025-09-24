@@ -102,10 +102,10 @@ export class CustomN3Store extends Store {
 }
 
 export async function createManagedN3Store(filePath: string) {
-  const store = new CustomN3Store();
+  const n3Store = new CustomN3Store();
   try {
     const data = await Deno.readTextFile(filePath);
-    await insertTurtle(store, data);
+    await insertTurtle(n3Store, data);
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) {
       console.log("No existing db.ttl found, starting with fresh data");
@@ -115,9 +115,9 @@ export async function createManagedN3Store(filePath: string) {
   }
 
   return {
-    store,
+    n3Store,
     persist: async () => {
-      await Deno.writeTextFile(filePath, store.toString());
+      await Deno.writeTextFile(filePath, n3Store.toString());
     },
   };
 }

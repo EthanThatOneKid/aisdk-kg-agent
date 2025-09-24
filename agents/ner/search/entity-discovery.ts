@@ -4,6 +4,7 @@ import type { SearchResult, SearchService } from "./search.ts";
 import type { NerOffset } from "../schema.ts";
 import { default as nlp } from "compromise";
 import { default as pluginDates } from "compromise-dates";
+import { QueryEngine } from "@comunica/query-sparql";
 
 // Extend compromise with dates plugin.
 nlp.extend(pluginDates);
@@ -268,10 +269,11 @@ export class EntityDiscoveryService {
   /**
    * createReconnaissanceContext generates context for the LLM about
    * entities that need SPARQL reconnaissance, using recognized entity IDs.
+   * Returns null if no entities are found to avoid unnecessary SPARQL queries.
    */
   createReconnaissanceContext(
     discovery: EntityDiscoveryResult<SearchResult>,
-  ): string {
+  ): string | null {
     const foundEntities = Array.from(discovery.discoveries.values())
       .filter((d) => d.found);
 
@@ -279,36 +281,127 @@ export class EntityDiscoveryService {
       .filter((d) => !d.found);
 
     if (foundEntities.length === 0) {
-      return "No existing entities found in the knowledge graph. All entities will need new IDs generated.";
+      return null; // No entities found, no SPARQL reconnaissance needed
     }
 
     const context = [
-      "ENTITY DISCOVERY RESULTS (sorted by search relevance): The following entities were found in the existing knowledge graph:",
+      "Found entities in existing knowledge graph:",
       ...foundEntities.map((e) => {
         const maxScore = e.searchResults.length > 0
           ? Math.max(...e.searchResults.map((r) => r.score))
           : 0;
-        return `- "${e.text}": Found ${e.matches} existing matches (max score: ${
+        // TODO: Select candidate with human in the loop. Or auto-confirm suggestions.
+        return `- "${e.text}": ${e.matches} matches (score: ${
           maxScore.toFixed(3)
-        }) (sample IDs: ${e.sampleIds.join(", ")})`;
+        }) - IDs: ${e.sampleIds.join(", ")}`;
       }),
       "",
-      "SPARQL RECONNAISSANCE REQUIRED: You MUST use the sparql tool to query for these recognized entity IDs before generating any Turtle.",
-      "Example SPARQL queries you should run (using the recognized IDs):",
+      "Query these entities using their exact IDs:",
       ...foundEntities.flatMap((e) =>
         e.sampleIds.slice(0, 2).map((id) =>
-          `  SELECT ?s ?p ?o WHERE { <${id}> ?p ?o . }`
+          `SELECT ?p ?o WHERE { <${id}> ?p ?o . }`
         )
       ),
       "",
       notFoundEntities.length > 0
-        ? `NEW ENTITIES: The following entities were not found and will need new IDs: ${
+        ? `New entities needing IDs: ${
           notFoundEntities.map((e) => `"${e.text}"`).join(", ")
         }`
-        : "All discovered entities have existing data.",
+        : "All entities have existing data.",
     ].join("\n");
 
     return context;
+  }
+
+  /**
+   * Automatically generates SPARQL reconnaissance queries based on the highest-scoring
+   * subjects from Orama search results. Returns the queries and their results.
+   */
+  async performAutomaticReconnaissance(
+    discovery: EntityDiscoveryResult<SearchResult>,
+    sparqlSources: unknown[],
+  ): Promise<{
+    queries: Array<
+      { entity: string; query: string; results: Record<string, string>[] }
+    >;
+    allResults: Record<string, string>[];
+  }> {
+    const foundEntities = Array.from(discovery.discoveries.values())
+      .filter((d) => d.found);
+
+    if (foundEntities.length === 0) {
+      return { queries: [], allResults: [] };
+    }
+
+    const queries: Array<
+      { entity: string; query: string; results: Record<string, string>[] }
+    > = [];
+    const allResults: Record<string, string>[] = [];
+
+    // For each found entity, get the highest-scoring subject and query it
+    for (const entity of foundEntities) {
+      if (entity.searchResults.length === 0) continue;
+
+      // Find the highest-scoring search result
+      const bestResult = entity.searchResults.reduce((best, current) =>
+        current.score > best.score ? current : best
+      );
+
+      // Generate SPARQL query for the highest-scoring subject
+      const query = `SELECT ?p ?o WHERE { <${bestResult.subject}> ?p ?o . }`;
+
+      try {
+        // Execute the SPARQL query
+        const results = await this.executeSparqlQuery(query, sparqlSources);
+
+        queries.push({
+          entity: entity.text,
+          query,
+          results,
+        });
+
+        allResults.push(...results);
+
+        console.log(
+          `Reconnaissance for "${entity.text}": ${results.length} properties found`,
+        );
+      } catch (error) {
+        console.warn(
+          `Failed to execute reconnaissance query for "${entity.text}":`,
+          error,
+        );
+      }
+    }
+
+    return { queries, allResults };
+  }
+
+  /**
+   * Executes a SPARQL query against the provided sources.
+   */
+  private async executeSparqlQuery(
+    query: string,
+    sources: unknown[],
+  ): Promise<Record<string, string>[]> {
+    if (sources.length === 0) {
+      return [];
+    }
+
+    const engine = new QueryEngine();
+    const bindingsStream = await engine.queryBindings(query, {
+      sources: sources as any, // Type assertion for Comunica compatibility
+    });
+
+    const results: Record<string, string>[] = [];
+    for await (const binding of bindingsStream) {
+      const result: Record<string, string> = {};
+      for (const [key, value] of binding) {
+        result[key.value] = value.value;
+      }
+      results.push(result);
+    }
+
+    return results;
   }
 }
 

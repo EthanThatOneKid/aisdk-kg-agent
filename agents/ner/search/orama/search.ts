@@ -62,17 +62,29 @@ export async function createManagedOramaTripleStore(filePath: string) {
       "json",
       await Deno.readTextFile(filePath),
     );
+    console.log(`Successfully restored Orama store from ${filePath}`);
+
     return {
       orama,
       persist: async () => {
-        await Deno.writeTextFile(
-          filePath,
-          JSON.stringify(await persist(orama, "json")),
-        );
+        const data = await persist(orama, "json");
+        if (typeof data !== "string") {
+          throw new Error("Persisted Orama index is not a string");
+        }
+
+        await Deno.writeTextFile(filePath, data);
       },
     };
   } catch (error) {
-    console.warn(`Failed to restore Orama store from ${filePath}:`, error);
+    // Check if it's a file not found error
+    if (error instanceof Error && error.name === "NotFound") {
+      console.log(
+        `No existing Orama store found at ${filePath}, creating new store`,
+      );
+    } else {
+      console.warn(`Failed to restore Orama store from ${filePath}:`, error);
+    }
+
     const orama = await createOramaTripleStore();
     return {
       orama,

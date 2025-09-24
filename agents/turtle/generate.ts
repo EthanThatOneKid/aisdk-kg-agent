@@ -7,14 +7,16 @@ import { generateIdTool } from "./tools/generate-id/tool.ts";
 
 interface GenerateTurtleContext {
   inputText: string;
-  references: Array<[string, string]>;
   allowedPrefixes?: string[];
   timestamp?: string;
   maxRetries?: number;
   shaclShapes?: string;
   temperature?: number;
   sources?: unknown[]; // SPARQL data sources (e.g., N3 stores, endpoints)
-  reconnaissanceContext?: string; // Context about entities needing SPARQL reconnaissance
+  reconnaissanceContext?: string | null; // Context about entities needing SPARQL reconnaissance
+  reconnaissanceResults?: Array<
+    { entity: string; query: string; results: Record<string, string>[] }
+  >; // Automatic reconnaissance results
 }
 
 const defaultAllowedPrefixes = [
@@ -45,17 +47,37 @@ export async function generateTurtle(
     "Maintain precision and consistency. Be thorough in entity identification and relationship mapping. Follow RDF best practices strictly. CRITICAL: Only create triples that are directly evidenced by the user input - do not fabricate, infer, or add information not explicitly mentioned.",
 
     // 3. Background data, documents, and images.
-    "You have access to schema.org vocabulary, SHACL validation shapes, a generateId tool for creating unique HTTP URIs, and a sparql tool for querying existing knowledge graph data. The sparql tool is your PRIMARY method for finding existing entity IDs - use it FIRST before generating new IDs. Use the provided references to map surface strings to subject IRIs exactly.",
-    context.reconnaissanceContext
+    "You have access to schema.org vocabulary, SHACL validation shapes, a generateId tool for creating unique HTTP URIs, and a sparql tool for querying existing knowledge graph data. Use the provided references to map surface strings to subject IRIs exactly.",
+    context.reconnaissanceResults && context.reconnaissanceResults.length > 0
+      ? `\nEXISTING ENTITY DATA:\n${
+        context.reconnaissanceResults.map((r) =>
+          `Entity "${r.entity}" (${r.results.length} properties):\n${
+            r.results.map((prop) => `  ${prop.p}: ${prop.o}`).join("\n")
+          }`
+        ).join("\n\n")
+      }\n`
+      : context.reconnaissanceContext
       ? `\nRECONNAISSANCE CONTEXT:\n${context.reconnaissanceContext}\n`
       : "",
 
     // 4. Detailed task description & rules.
     "Core Requirements:",
     "- EVIDENCE-BASED ONLY: Create triples ONLY for information explicitly mentioned in the user input. Do not infer, assume, or fabricate any properties, relationships, or entities not directly stated. Do not add temporal information (times, dates, durations) unless explicitly provided. Do not add status information (completed, pending, etc.) unless explicitly stated",
-    "- RECONNAISSANCE FIRST: ALWAYS start by using the sparql tool to query existing data about entities. This is your PRIMARY method for finding existing IDs and avoiding duplication",
-    "- ID RESOLUTION STRATEGY: Follow this exact order: (1) Check provided references, (2) Query existing data via sparql tool, (3) Only if no existing ID found, use generateId tool as fallback",
-    "- MANDATORY: Before generating any Turtle, you MUST resolve ALL entity IDs using the above strategy",
+    context.reconnaissanceResults && context.reconnaissanceResults.length > 0
+      ? "- EXISTING ENTITIES: Use the existing entity data provided above. These entities already have IDs and properties in the knowledge graph. Do NOT use the sparql tool - all reconnaissance has been completed automatically."
+      : context.reconnaissanceContext
+      ? "- RECONNAISSANCE FIRST: Use the sparql tool with the exact queries provided in the reconnaissance context. Do not create new queries that search by name or text."
+      : "- NEW ENTITIES: No existing entities were found in the knowledge graph, so you can proceed directly to generating new IDs for all entities",
+    context.reconnaissanceResults && context.reconnaissanceResults.length > 0
+      ? "- ID RESOLUTION STRATEGY: Use the existing entity IDs from the provided data. For new entities not found in the existing data, use generateId tool."
+      : context.reconnaissanceContext
+      ? "- ID RESOLUTION STRATEGY: Follow this exact order: (1) Check provided references, (2) Query existing data via sparql tool using the EXACT entity IDs from reconnaissance context, (3) Only if no existing ID found, use generateId tool as fallback"
+      : "- ID RESOLUTION STRATEGY: Since no existing entities were found, use generateId tool to create new IDs for all entities",
+    context.reconnaissanceResults && context.reconnaissanceResults.length > 0
+      ? "- MANDATORY: Use the existing entity data provided above for entities that were found. Generate new IDs only for entities not in the existing data."
+      : context.reconnaissanceContext
+      ? "- MANDATORY: Before generating any Turtle, you MUST resolve ALL entity IDs using the above strategy"
+      : "- MANDATORY: Before generating any Turtle, you MUST generate new IDs for all entities using the generateId tool",
     "- CRITICAL: NEVER use hardcoded IDs like 'meetup1', 'action1', 'event1', etc. Always use proper ID resolution",
     "- Use only allowlisted prefixes: " + allowedPrefixes.join(", ") +
     ". Expand to full IRIs instead of introducing new prefixes",
@@ -123,15 +145,7 @@ export async function generateTurtle(
     ...fewShot,
     { role: "user", content: "Here is the input text:" },
     { role: "user", content: context.inputText },
-    {
-      role: "user",
-      content: [
-        "Here are the references you can use to map the natural language to the Turtle:",
-        ...context.references.map(([text, subject]) =>
-          `- [${text}](${subject})`
-        ),
-      ].join("\n"),
-    },
+    // TODO: List references.
     ...((context.timestamp !== undefined
       ? [
         { role: "user", content: "Here is the timestamp:" },
@@ -151,12 +165,18 @@ export async function generateTurtle(
         generateId: generateIdTool({
           generate: () =>
             `https://fartlabs.org/.well-known/genid/${crypto.randomUUID()}`,
-          verbose: true,
+          verbose: false,
         }),
-        sparql: sparqlTool({
-          sources: context.sources ?? [], // Use provided sources or empty array
-          verbose: true,
-        }),
+        // Only include SPARQL tool if we don't have automatic reconnaissance results
+        ...(context.reconnaissanceResults &&
+            context.reconnaissanceResults.length > 0
+          ? {}
+          : {
+            sparql: sparqlTool({
+              sources: context.sources ?? [], // Use provided sources or empty array
+              verbose: false,
+            }),
+          }),
       },
       system: systemPrompt,
       messages,
@@ -177,7 +197,7 @@ export async function generateTurtle(
 
     // Log SPARQL tool usage specifically.
     const sparqlCalls = allToolCalls.filter((call) =>
-      call.toolName === "sparql"
+      call?.toolName === "sparql"
     );
     console.log(`🔍 SPARQL reconnaissance calls: ${sparqlCalls.length}`);
 
