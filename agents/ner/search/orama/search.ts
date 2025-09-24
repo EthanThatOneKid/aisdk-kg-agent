@@ -1,4 +1,5 @@
 import { create, insert, remove, search } from "@orama/orama";
+import { persist, restore } from "@orama/plugin-data-persistence";
 import type { SearchResult, SearchService } from "agents/ner/search/search.ts";
 
 export class OramaSearchService implements SearchService {
@@ -10,14 +11,40 @@ export class OramaSearchService implements SearchService {
       properties: ["object"],
     });
     const subjects = result.hits
-      .map((hit) => ({ subject: hit.document.subject, score: hit.score }))
-      .reduce((acc, cur) => {
-        acc.set(cur.subject, (acc.get(cur.subject) ?? 0) + cur.score);
-        return acc;
-      }, new Map<string, number>());
-    return Array.from(subjects.entries())
-      .toSorted((a, b) => b[1] - a[1])
-      .map(([subject, score]) => ({ subject, score }));
+      .map((hit) => ({
+        subject: hit.document.subject,
+        predicate: hit.document.predicate,
+        object: hit.document.object,
+        score: hit.score,
+      }))
+      .reduce(
+        (acc, cur) => {
+          const key = cur.subject;
+          if (!acc.has(key)) {
+            acc.set(key, {
+              subject: cur.subject,
+              predicate: cur.predicate,
+              object: cur.object,
+              score: cur.score,
+            });
+          } else {
+            // Keep the highest score for this subject
+            const existing = acc.get(key)!;
+            if (cur.score > existing.score) {
+              existing.score = cur.score;
+              existing.predicate = cur.predicate;
+              existing.object = cur.object;
+            }
+          }
+          return acc;
+        },
+        new Map<
+          string,
+          { subject: string; predicate: string; object: string; score: number }
+        >(),
+      );
+    return Array.from(subjects.values())
+      .toSorted((a, b) => b.score - a.score);
   }
 }
 
@@ -37,6 +64,32 @@ export function createOramaTripleStore() {
       object: "string",
     },
   });
+}
+
+const defaultFilePath = "./orama.json";
+
+export async function saveOramaTripleStore(
+  orama: OramaTripleStore,
+  filePath: string = defaultFilePath,
+): Promise<void> {
+  // Use the official Orama persistence plugin.
+  const jsonIndex = await persist(orama, "json");
+  await Deno.writeTextFile(filePath, JSON.stringify(jsonIndex, null, 2));
+}
+
+export async function restoreOramaTripleStore(
+  filePath: string = defaultFilePath,
+): Promise<OramaTripleStore | null> {
+  try {
+    const data = await Deno.readTextFile(filePath);
+    if (data.trim()) {
+      const jsonIndex = JSON.parse(data);
+      return await restore("json", jsonIndex) as OramaTripleStore;
+    }
+  } catch (_error) {
+    // File doesn't exist or is invalid, return null
+  }
+  return null;
 }
 
 export async function insertTriple(

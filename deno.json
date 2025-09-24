@@ -6,6 +6,7 @@
     "outdated": "deno outdated --update --latest"
   },
   "imports": {
+    "@orama/plugin-data-persistence": "npm:@orama/plugin-data-persistence@^3.1.14",
     "agents/": "./agents/",
     "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.15",
     "@comunica/query-sparql": "npm:@comunica/query-sparql@^4.4.0",

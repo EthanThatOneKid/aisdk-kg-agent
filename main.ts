@@ -1,14 +1,16 @@
 import { google } from "@ai-sdk/google";
+import { Writer } from "n3";
 import { generateTurtle } from "agents/turtle/generate.ts";
-import { recognizeEntities } from "agents/ner/nlp.ts";
-import {
-  autosuggest,
-  generateSuggestions,
-} from "agents/ner/search/suggestions.ts";
+import { EntityDiscoveryService } from "agents/ner/search/entity-discovery.ts";
 import {
   createOramaTripleStore,
   OramaSearchService,
+  restoreOramaTripleStore,
+  saveOramaTripleStore,
 } from "agents/ner/search/orama/search.ts";
+import { CustomN3Store } from "./n3store/custom-n3store.ts";
+import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
+import { addTurtle } from "agents/turtle/add.ts";
 import schemaShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
   type: "text",
 };
@@ -17,30 +19,69 @@ if (import.meta.main) {
   try {
     const model = google("models/gemini-2.5-flash");
 
-    const orama = createOramaTripleStore();
+    // Try to restore existing Orama database, or create new one
+    let orama = await restoreOramaTripleStore("./orama.json");
+    if (!orama) {
+      orama = createOramaTripleStore();
+      console.log("Created new Orama database");
+    } else {
+      console.log("Restored existing Orama database");
+    }
+
     const searchService = new OramaSearchService(orama);
+
+    // Create a CustomN3Store for SPARQL queries
+    const n3Store = new CustomN3Store();
+
+    // Create an interceptor to sync N3 store changes with Orama store
+    const oramaSyncInterceptor = new OramaSyncInterceptor(orama);
+    n3Store.addInterceptor(oramaSyncInterceptor);
+
+    // Try to restore existing data from db.ttl
+    try {
+      const existingData = await Deno.readTextFile("./db.ttl");
+      if (existingData.trim()) {
+        addTurtle(n3Store, existingData);
+        console.log(`Restored ${n3Store.size} triples from db.ttl`);
+      }
+    } catch (_error) {
+      console.log("No existing db.ttl found, starting with fresh data");
+    }
+
+    console.log(`Orama store synchronized with N3 store`);
 
     console.log("Processing text...");
 
     const inputText =
       "I met up with Kyle at the Lost Bean cafe yesterday in the morning.";
-    const nerResult = recognizeEntities(inputText);
 
-    console.log("Generating suggestions...");
+    console.log("Discovering entities using LLM-driven approach...");
 
-    const suggestions = await generateSuggestions(
-      searchService,
-      { entities: nerResult },
-    );
+    // Use the new entity discovery service instead of NER
+    const entityDiscoveryService = new EntityDiscoveryService(searchService);
+    const discovery = await entityDiscoveryService.discoverEntities(inputText);
 
-    // Wait for user to select or choose to auto-resolve entities.
-    // User may create a new ID for an entity here, as long as it's a valid, unique IRI.
-    const references = autosuggest(suggestions);
+    console.log(`Found ${discovery.totalCandidates} entity candidates:`);
+    for (const [candidate, entityDiscovery] of discovery.discoveries) {
+      console.log(
+        `  - "${candidate}": ${
+          entityDiscovery.found
+            ? `${entityDiscovery.matches} matches`
+            : "not found"
+        }`,
+      );
+    }
+
+    // Create reconnaissance context to guide the LLM
+    const reconnaissanceContext = entityDiscoveryService
+      .createReconnaissanceContext(discovery);
+    console.log("\nReconnaissance context:");
+    console.log(reconnaissanceContext);
 
     console.log("Generating Turtle...");
     const ttl = await generateTurtle(model, {
       inputText,
-      references,
+      references: [], // No pre-resolved references - let LLM handle everything
       timestamp: new Intl.DateTimeFormat(
         "en-US",
         {
@@ -55,6 +96,8 @@ if (import.meta.main) {
         },
       ).format(new Date()),
       shaclShapes: schemaShapes,
+      sources: [n3Store], // Pass the N3 store as a SPARQL source
+      reconnaissanceContext, // Pass reconnaissance context
     });
 
     console.log("Input text:", inputText);
@@ -62,7 +105,28 @@ if (import.meta.main) {
     console.log(ttl);
     console.log("Turtle length:", ttl.length);
 
-    await Deno.writeTextFile("./result.ttl", ttl);
+    // Add the generated Turtle to the N3 store for persistence
+    addTurtle(n3Store, ttl);
+    console.log(
+      `Added generated Turtle to N3 store. Total triples: ${n3Store.size}`,
+    );
+
+    // Save the N3 store to db.ttl for persistence
+    const writer = new Writer({ format: "Turtle" });
+    n3Store.forEach((quad) => writer.addQuad(quad));
+    const dbTurtle = await new Promise<string>((resolve, reject) => {
+      writer.end((error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      });
+    });
+
+    await Deno.writeTextFile("./db.ttl", dbTurtle);
+    console.log(`Saved ${n3Store.size} triples to db.ttl`);
+
+    // Save the Orama database for persistence
+    await saveOramaTripleStore(orama, "./orama.json");
+    console.log("Saved Orama database to orama.json");
   } catch (error) {
     console.error("=== ERROR DETAILS ===");
     console.error("Error name:", (error as Error).name);

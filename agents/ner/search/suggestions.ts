@@ -10,20 +10,61 @@ export interface SuggestionsContext {
 
 /**
  * autosuggest auto-suggests references for a given set of suggestions.
+ * Uses forced reconnaissance strategy: only provides references for entities with NO existing matches,
+ * forcing the LLM to use SPARQL reconnaissance for entities that DO have matches.
  */
 export function autosuggest(
   suggestions: Map<string, SearchResult[]>,
 ): Array<[string, string]> {
   return Array.from(suggestions.entries())
     .reduce<Array<[string, string]>>((acc, [text, results]) => {
-      const id = results.at(0)?.subject;
-      if (id === undefined) {
-        return acc;
+      // Only provide references for entities with NO existing matches
+      // This forces the LLM to use SPARQL reconnaissance for entities that DO have matches
+      if (results.length === 0) {
+        // No existing matches - provide a placeholder that will require generateId
+        acc.push([text, ""]);
       }
-
-      acc.push([text, id]);
+      // If results.length > 0, we intentionally don't provide the reference
+      // This forces the LLM to use SPARQL tool to find the existing ID
       return acc;
     }, []);
+}
+
+/**
+ * createReconnaissanceContext provides detailed context about entities that need
+ * SPARQL reconnaissance, helping the LLM understand what to query for.
+ */
+export function createReconnaissanceContext(
+  suggestions: Map<string, SearchResult[]>,
+): string {
+  const entitiesNeedingRecon = Array.from(suggestions.entries())
+    .filter(([_, results]) => results.length > 0)
+    .map(([text, results]) => ({
+      entity: text,
+      existingMatches: results.length,
+      sampleIds: results.slice(0, 2).map((r) => r.subject),
+    }));
+
+  if (entitiesNeedingRecon.length === 0) {
+    return "No entities found in existing data - all entities will need new IDs generated.";
+  }
+
+  const context = [
+    "RECONNAISSANCE REQUIRED: The following entities have existing data and MUST be queried via SPARQL:",
+    ...entitiesNeedingRecon.map((e) =>
+      `- "${e.entity}": Found ${e.existingMatches} existing matches (sample IDs: ${
+        e.sampleIds.join(", ")
+      })`
+    ),
+    "",
+    "You MUST use the sparql tool to query for these entities before generating any Turtle.",
+    "Example SPARQL queries you should run:",
+    ...entitiesNeedingRecon.map((e) =>
+      `  SELECT ?s ?p ?o WHERE { ?s ?p ?o . FILTER(CONTAINS(LCASE(?o), "${e.entity.toLowerCase()}")) }`
+    ),
+  ].join("\n");
+
+  return context;
 }
 
 /**

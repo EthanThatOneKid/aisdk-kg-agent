@@ -10,5 +10,7 @@ export interface SearchService {
  */
 export interface SearchResult {
   subject: string;
+  predicate: string;
+  object: string;
   score: number;
 }
