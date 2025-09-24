@@ -14,8 +14,10 @@ import schemaShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
 
 const config = {
   oramaPath: "./orama.json",
-  tripleStorePath: "./db.ttl",
+  n3StorePath: "./db.ttl",
 };
+
+// TODO: Create interactive CLI flow.
 
 if (import.meta.main) {
   try {
@@ -27,7 +29,7 @@ if (import.meta.main) {
 
     // Create a managed N3Store for SPARQL queries.
     const { store: n3Store, persist: persistN3Store } =
-      await createManagedN3Store(config.tripleStorePath);
+      await createManagedN3Store(config.n3StorePath);
 
     // Create an interceptor to sync N3 store changes with Orama store.
     const oramaSyncInterceptor = new OramaSyncInterceptor(orama);
