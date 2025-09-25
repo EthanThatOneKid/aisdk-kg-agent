@@ -1,22 +1,18 @@
 import type { LanguageModel, ModelMessage } from "ai";
-import { generateText, stepCountIs } from "ai";
+import { generateText } from "ai";
+import type { LinkedEntity } from "agents/linker/entity-linker.ts";
 import { validateTurtle } from "./shacl/validate.ts";
 import { examples } from "./few-shot.ts";
-import { sparqlTool } from "./tools/sparql/tool.ts";
 import { generateIdTool } from "./tools/generate-id/tool.ts";
 
 interface GenerateTurtleContext {
   inputText: string;
+  linkedEntities?: LinkedEntity[];
   allowedPrefixes?: string[];
   timestamp?: string;
   maxRetries?: number;
   shaclShapes?: string;
   temperature?: number;
-  sources?: unknown[]; // SPARQL data sources (e.g., N3 stores, endpoints)
-  reconnaissanceContext?: string | null; // Context about entities needing SPARQL reconnaissance
-  reconnaissanceResults?: Array<
-    { entity: string; query: string; results: Record<string, string>[] }
-  >; // Automatic reconnaissance results
 }
 
 const defaultAllowedPrefixes = [
@@ -39,92 +35,140 @@ export async function generateTurtle(
   const maxRetries = context.maxRetries ?? 3;
   const allowedPrefixes = context.allowedPrefixes ?? defaultAllowedPrefixes;
 
-  const systemPrompt = [
-    // 1. Task context.
-    "You are an expert episodic memory extractor for RDF knowledge graphs. Your role is to convert natural language stream of consciousness into valid Turtle (TTL) using schema.org vocabulary to faithfully capture episodes (who/what/when/where).",
+  // Build prompt sections programmatically.
+  const hasLinkedEntities = context.linkedEntities &&
+    context.linkedEntities.length > 0;
 
-    // 2. Tone context.
-    "Maintain precision and consistency. Be thorough in entity identification and relationship mapping. Follow RDF best practices strictly. CRITICAL: Only create triples that are directly evidenced by the user input - do not fabricate, infer, or add information not explicitly mentioned.",
+  // 1. Task context
+  const taskContext =
+    "You are an expert episodic memory extractor for RDF knowledge graphs. Your role is to convert natural language stream of consciousness into valid Turtle (TTL) using schema.org vocabulary to faithfully capture episodes (who/what/when/where).";
 
-    // 3. Background data, documents, and images.
-    "You have access to schema.org vocabulary, SHACL validation shapes, a generateId tool for creating unique HTTP URIs, and a sparql tool for querying existing knowledge graph data. Use the provided references to map surface strings to subject IRIs exactly.",
-    context.reconnaissanceResults && context.reconnaissanceResults.length > 0
-      ? `\nEXISTING ENTITY DATA:\n${
-        context.reconnaissanceResults.map((r) =>
-          `Entity "${r.entity}" (${r.results.length} properties):\n${
-            r.results.map((prop) => `  ${prop.p}: ${prop.o}`).join("\n")
-          }`
-        ).join("\n\n")
-      }\n`
-      : context.reconnaissanceContext
-      ? `\nRECONNAISSANCE CONTEXT:\n${context.reconnaissanceContext}\n`
-      : "",
+  // 2. Tone context
+  const toneContext =
+    "Maintain precision and consistency. Be thorough in entity identification and relationship mapping. Follow RDF best practices strictly. CRITICAL: Only create triples that are directly evidenced by the user input - do not fabricate, infer, or add information not explicitly mentioned.";
 
-    // 4. Detailed task description & rules.
+  // 3. Background data
+  const backgroundData =
+    "You have access to schema.org vocabulary, SHACL validation shapes, and a generateId tool for creating unique HTTP URIs. Use the provided references to map surface strings to subject IRIs exactly.";
+
+  // 4. Linked entities section
+  let linkedEntitiesSection = "";
+  if (hasLinkedEntities) {
+    const linkedEntitiesList = context.linkedEntities!.map((linkedEntity) => {
+      const entityText = linkedEntity.entity.text;
+      const hit = linkedEntity.hit;
+      if (hit) {
+        return `Entity "${entityText}" -> Found existing ID: ${hit.subject} (confidence: ${hit.score})`;
+      } else {
+        return `Entity "${entityText}" -> No existing match found (needs new ID)`;
+      }
+    }).join("\n");
+    linkedEntitiesSection = `\nLINKED ENTITIES:\n${linkedEntitiesList}\n`;
+  }
+
+  // 5. Core requirements
+  const coreRequirements = [
     "Core Requirements:",
     "- EVIDENCE-BASED ONLY: Create triples ONLY for information explicitly mentioned in the user input. Do not infer, assume, or fabricate any properties, relationships, or entities not directly stated. Do not add temporal information (times, dates, durations) unless explicitly provided. Do not add status information (completed, pending, etc.) unless explicitly stated",
-    context.reconnaissanceResults && context.reconnaissanceResults.length > 0
-      ? "- EXISTING ENTITIES: Use the existing entity data provided above. These entities already have IDs and properties in the knowledge graph. Do NOT use the sparql tool - all reconnaissance has been completed automatically."
-      : context.reconnaissanceContext
-      ? "- RECONNAISSANCE FIRST: Use the sparql tool with the exact queries provided in the reconnaissance context. Do not create new queries that search by name or text."
-      : "- NEW ENTITIES: No existing entities were found in the knowledge graph, so you can proceed directly to generating new IDs for all entities",
-    context.reconnaissanceResults && context.reconnaissanceResults.length > 0
-      ? "- ID RESOLUTION STRATEGY: Use the existing entity IDs from the provided data. For new entities not found in the existing data, use generateId tool."
-      : context.reconnaissanceContext
-      ? "- ID RESOLUTION STRATEGY: Follow this exact order: (1) Check provided references, (2) Query existing data via sparql tool using the EXACT entity IDs from reconnaissance context, (3) Only if no existing ID found, use generateId tool as fallback"
-      : "- ID RESOLUTION STRATEGY: Since no existing entities were found, use generateId tool to create new IDs for all entities",
-    context.reconnaissanceResults && context.reconnaissanceResults.length > 0
-      ? "- MANDATORY: Use the existing entity data provided above for entities that were found. Generate new IDs only for entities not in the existing data."
-      : context.reconnaissanceContext
-      ? "- MANDATORY: Before generating any Turtle, you MUST resolve ALL entity IDs using the above strategy"
-      : "- MANDATORY: Before generating any Turtle, you MUST generate new IDs for all entities using the generateId tool",
+  ];
+
+  // Add entity-specific requirements based on context.
+  if (hasLinkedEntities) {
+    coreRequirements.push(
+      "- LINKED ENTITIES: Use the linked entities provided above. Entities with existing IDs should use those IDs. Entities without matches need new IDs generated.",
+      "- ID RESOLUTION STRATEGY: For each entity in the linked entities list: (1) If it has a hit with an existing ID, use that ID, (2) If it has no hit (null), use generateId tool to create a new ID",
+      "- MANDATORY: Use the existing entity IDs from the linked entities data for entities that were found. Generate new IDs only for entities without matches (hit is null).",
+    );
+  } else {
+    coreRequirements.push(
+      "- NEW ENTITIES: No linked entities were provided, so you can proceed directly to generating new IDs for all entities",
+      "- ID RESOLUTION STRATEGY: Since no linked entities were provided, use generateId tool to create new IDs for all entities",
+      "- MANDATORY: Before generating any Turtle, you MUST generate new IDs for all entities using the generateId tool",
+    );
+  }
+
+  // Add common requirements.
+  coreRequirements.push(
     "- CRITICAL: NEVER use hardcoded IDs like 'meetup1', 'action1', 'event1', etc. Always use proper ID resolution",
-    "- Use only allowlisted prefixes: " + allowedPrefixes.join(", ") +
-    ". Expand to full IRIs instead of introducing new prefixes",
+    `- Use only allowlisted prefixes: ${
+      allowedPrefixes.join(", ")
+    }. Expand to full IRIs instead of introducing new prefixes`,
     "- Prefer schema.org vocabulary for Actions, Events, CreativeWorks, and Places",
     "- Capture ONLY episode information explicitly mentioned: agent, object, location. Do not add time/status unless explicitly stated",
     "- Use typed literals with xsd (xsd:date, xsd:dateTime, xsd:decimal, xsd:duration)",
     "- Prefer named HTTP(S) IRIs over blank nodes whenever possible",
     "- Reuse identical IRIs across triples; do not alias or paraphrase",
     "- DESCRIPTIVE CONTENT: For Actions and Events, include schema:name and schema:description predicates when the input provides descriptive information. Use the natural language input to create meaningful labels and descriptions. You may also use rdfs:label for additional labeling.",
+  );
 
-    // 5. Examples (referenced via few-shot examples).
+  // 6. Examples and guidance
+  const examplesGuidance = [
     "See the provided few-shot examples for proper Turtle structure and entity modeling patterns.",
     "IMPORTANT: If input says 'I met Kyle yesterday morning', do NOT add specific times like '09:00:00' or statuses like 'CompletedActionStatus' - only include what was explicitly mentioned.",
     "DESCRIPTIVE EXAMPLE: For input 'I met up with Kyle at the Lost Bean cafe', the Action should include: schema:name 'Meet up with Kyle' and schema:description 'Meeting with Kyle at the Lost Bean cafe'.",
+  ];
 
-    // 6. Conversation history.
-    "Previous context: You are processing user input with entity references and optional timestamp.",
-
-    // 7. Immediate task description or request.
-    "Current task: Convert the provided natural language input into valid Turtle RDF, ensuring all entities have proper HTTP URIs. IMPORTANT: Only include information explicitly stated in the input - do not add times, dates, statuses, or other inferred information.",
-
-    // 8. Thinking step by step / take a deep breath.
+  // 7. Workflow steps
+  const workflowSteps = [
     "MANDATORY WORKFLOW - YOU MUST FOLLOW THESE STEPS:",
-    "STEP 1: NATURAL ENTITY IDENTIFICATION - Use your natural language understanding to identify all entities EXPLICITLY mentioned in the input (people, places, actions, events, objects). Do not rely on preprocessing - identify entities directly from the text.",
-    "STEP 2: MANDATORY SPARQL RECONNAISSANCE - You MUST call the sparql tool for EACH identified entity to check for existing data. This is NOT optional.",
-    "STEP 3: For each entity, follow ID resolution in this EXACT order:",
-    "   a) MANDATORY: Query existing data via sparql tool to find existing IDs",
-    "   b) Only if no existing ID found, use generateId tool as fallback",
-    "STEP 4: Map entities to resolved IRIs (from sparql results or generated IDs)",
-    "STEP 5: Determine appropriate schema.org types (Action, Event, CreativeWork, Place) based ONLY on explicit mentions",
-    "STEP 6: Capture ONLY relationships and properties explicitly mentioned (agent, object, location) - do not infer or add properties, especially temporal or status information",
-    "STEP 7: Add descriptive content (schema:name, schema:description) for Actions and Events based on the natural language input",
-    "STEP 8: Generate valid Turtle with proper prefixes and syntax, including ONLY evidenced information",
-    "",
-    "CRITICAL: You CANNOT skip the sparql tool calls. If you generate Turtle without calling sparql first, you are violating the core requirements.",
+  ];
+
+  // Add workflow steps based on context.
+  if (hasLinkedEntities) {
+    workflowSteps.push(
+      "STEP 1: USE PROVIDED LINKED ENTITIES - Use the linked entities provided above. These have already been processed and linked to the knowledge graph where possible.",
+      "STEP 2: ID RESOLUTION FROM LINKED ENTITIES - For each linked entity: (1) If it has a hit with an existing ID, use that ID, (2) If it has no hit (null), use generateId tool to create a new ID",
+      "STEP 3: Map entities to resolved IRIs (from linked entity hits or generated IDs)",
+      "STEP 4: Determine appropriate schema.org types (Action, Event, CreativeWork, Place) based ONLY on explicit mentions",
+      "STEP 5: Capture ONLY relationships and properties explicitly mentioned (agent, object, location) - do not infer or add properties, especially temporal or status information",
+      "STEP 6: Add descriptive content (schema:name, schema:description) for Actions and Events based on the natural language input",
+      "STEP 7: Generate valid Turtle with proper prefixes and syntax, including ONLY evidenced information",
+    );
+  } else {
+    workflowSteps.push(
+      "STEP 1: NATURAL ENTITY IDENTIFICATION - Use your natural language understanding to identify all entities EXPLICITLY mentioned in the input (people, places, actions, events, objects). Do not rely on preprocessing - identify entities directly from the text.",
+      "STEP 2: ID RESOLUTION - For each identified entity, use the generateId tool to create a new ID",
+      "STEP 3: Map entities to resolved IRIs (from generated IDs)",
+      "STEP 4: Determine appropriate schema.org types (Action, Event, CreativeWork, Place) based ONLY on explicit mentions",
+      "STEP 5: Capture ONLY relationships and properties explicitly mentioned (agent, object, location) - do not infer or add properties, especially temporal or status information",
+      "STEP 6: Add descriptive content (schema:name, schema:description) for Actions and Events based on the natural language input",
+      "STEP 7: Generate valid Turtle with proper prefixes and syntax, including ONLY evidenced information",
+    );
+  }
+
+  // Add common guidance.
+  workflowSteps.push(
     "ENTITY IDENTIFICATION: Trust your natural language understanding over any preprocessing. Identify entities directly from the input text context.",
+  );
 
-    // 9. Output formatting.
-    "Output contract: Only output valid Turtle. No prose, no code fences, no explanations. Start with prefix declarations, then entity definitions.",
+  // 8. Output formatting
+  const outputFormatting =
+    "Output contract: Only output valid Turtle. No prose, no code fences, no explanations. Start with prefix declarations, then entity definitions.";
 
-    // 10. Prefilled response (if any).
+  // 9. Validation checklist
+  const validationChecklist = [
     "Final validation checklist:",
-    "(1) PRIORITY: Used sparql tool FIRST to query existing data about entities",
-    "(2) Followed ID resolution strategy: references → sparql → generateId (fallback only)",
+  ];
+
+  // Add context-specific validation items.
+  if (hasLinkedEntities) {
+    validationChecklist.push(
+      "(1) PRIORITY: Used linked entities data to resolve existing IDs where available",
+      "(2) Followed ID resolution strategy: linked entity hits → generateId (for entities without hits)",
+      "(5) Mapped entities to resolved IRIs (linked entity hits or generated)",
+    );
+  } else {
+    validationChecklist.push(
+      "(1) PRIORITY: Identified entities from input text and generated new IDs for all",
+      "(2) Followed ID resolution strategy: generateId for all entities",
+      "(5) Mapped entities to resolved IRIs (generated)",
+    );
+  }
+
+  // Add common validation items.
+  validationChecklist.push(
     "(3) Called generateId tool ONLY for entities with no existing ID found",
     "(4) Used only allowlisted prefixes",
-    "(5) Mapped entities to resolved IRIs (references, sparql results, or generated)",
     "(6) Included ONLY agent/object/location explicitly mentioned in input (no inferred time/status)",
     "(7) Used schema.org Actions/Events/CreativeWorks/Places based on explicit mentions only",
     "(8) Added descriptive content (schema:name, schema:description) for Actions and Events",
@@ -132,6 +176,21 @@ export async function generateTurtle(
     "(10) Preferred named nodes over blank nodes",
     "(11) Ensured Turtle parses correctly",
     "(12) CRITICAL: Did not fabricate, infer, or add any information not explicitly stated in the user input",
+  );
+
+  // Combine all sections.
+  const systemPrompt = [
+    taskContext,
+    toneContext,
+    backgroundData,
+    linkedEntitiesSection,
+    ...coreRequirements,
+    ...examplesGuidance,
+    "Previous context: You are processing user input with entity references and optional timestamp.",
+    "Current task: Convert the provided natural language input into valid Turtle RDF, ensuring all entities have proper HTTP URIs. IMPORTANT: Only include information explicitly stated in the input - do not add times, dates, statuses, or other inferred information.",
+    ...workflowSteps,
+    outputFormatting,
+    ...validationChecklist,
   ].join("\n");
 
   const fewShot: ModelMessage[] = examples.flatMap((
@@ -141,17 +200,15 @@ export async function generateTurtle(
     { role: "assistant", content: example.output },
   ]);
 
+  // Build consolidated user message.
+  let userContent = `Here is the input text:\n${context.inputText}`;
+  if (context.timestamp !== undefined) {
+    userContent += `\n\nHere is the timestamp:\n${context.timestamp}`;
+  }
+
   const messages: ModelMessage[] = [
     ...fewShot,
-    { role: "user", content: "Here is the input text:" },
-    { role: "user", content: context.inputText },
-    // TODO: List references.
-    ...((context.timestamp !== undefined
-      ? [
-        { role: "user", content: "Here is the timestamp:" },
-        { role: "user", content: context.timestamp },
-      ]
-      : []) as ModelMessage[]),
+    { role: "user", content: userContent },
     { role: "assistant", content: "Here is the Turtle:" },
   ];
 
@@ -167,20 +224,9 @@ export async function generateTurtle(
             `https://fartlabs.org/.well-known/genid/${crypto.randomUUID()}`,
           verbose: false,
         }),
-        // Only include SPARQL tool if we don't have automatic reconnaissance results
-        ...(context.reconnaissanceResults &&
-            context.reconnaissanceResults.length > 0
-          ? {}
-          : {
-            sparql: sparqlTool({
-              sources: context.sources ?? [], // Use provided sources or empty array
-              verbose: false,
-            }),
-          }),
       },
       system: systemPrompt,
       messages,
-      stopWhen: stepCountIs(5), // Allow up to 5 steps for tool calls and text generation
     });
 
     // Get the generated text (tools are handled automatically by generateText).
@@ -195,24 +241,10 @@ export async function generateTurtle(
     const allToolCalls = result.steps.flatMap((step) => step.toolCalls);
     console.log(`🔧 Total tool calls: ${allToolCalls.length}`);
 
-    // Log SPARQL tool usage specifically.
-    const sparqlCalls = allToolCalls.filter((call) =>
-      call?.toolName === "sparql"
-    );
-    console.log(`🔍 SPARQL reconnaissance calls: ${sparqlCalls.length}`);
-
-    // VALIDATION: Check if SPARQL tool was used.
-    if (sparqlCalls.length === 0) {
-      console.warn("⚠️  WARNING: No SPARQL reconnaissance calls detected!");
-      console.warn(
-        "⚠️  The LLM should have called the sparql tool to check for existing entities.",
-      );
-      console.warn(
-        "⚠️  This may indicate the LLM is not following the mandatory workflow.",
-      );
-    } else {
+    // Log linked entities usage if provided.
+    if (context.linkedEntities && context.linkedEntities.length > 0) {
       console.log(
-        `✅ SPARQL reconnaissance completed: ${sparqlCalls.length} queries executed`,
+        `✅ Using linked entities data: ${context.linkedEntities.length} entities provided`,
       );
     }
 

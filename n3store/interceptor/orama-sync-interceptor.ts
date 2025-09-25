@@ -3,8 +3,11 @@ import type { QuadInterceptor } from "./interceptor.ts";
 import type {
   OramaTriple,
   OramaTripleStore,
-} from "agents/ner/search/orama/search.ts";
-import { insertTriple, removeTriple } from "agents/ner/search/orama/search.ts";
+} from "agents/linker/search/orama/triple-store.ts";
+import {
+  insertTriple,
+  removeTriple,
+} from "agents/linker/search/orama/triple-store.ts";
 
 /**
  * OramaSyncInterceptor synchronizes N3 store changes with an Orama triple store

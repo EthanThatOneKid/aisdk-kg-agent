@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+/**
+ * NerService recognizes entities from text.
+ */
+export interface NerService {
+  recognize(text: string): Promise<NerEntity[]>;
+}
+
+/**
+ * NerOffset is the location of an entity in text.
+ */
 export type NerOffset = z.infer<typeof nerOffsetSchema>;
 
 export const nerOffsetSchema = z.object({
@@ -8,10 +18,15 @@ export const nerOffsetSchema = z.object({
   length: z.number(),
 });
 
+/**
+ * NerEntity is an entity extracted from text.
+ */
 export type NerEntity = z.infer<typeof nerEntitySchema>;
 
+/**
+ * NerEntity is an entity recognized from text.
+ */
 export const nerEntitySchema = z.object({
   text: z.string(),
-  type: z.string(),
   offset: nerOffsetSchema,
 });

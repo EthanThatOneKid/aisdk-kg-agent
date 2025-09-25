@@ -1,16 +1,16 @@
 import { google } from "@ai-sdk/google";
 import { generateTurtle } from "agents/turtle/generate.ts";
-import { EntityDiscoveryService } from "agents/ner/search/entity-discovery.ts";
-import {
-  createManagedOramaTripleStore,
-  OramaSearchService,
-} from "agents/ner/search/orama/search.ts";
-import { createManagedN3Store } from "./n3store/custom-n3store.ts";
-import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
+import { EntityLinker } from "agents/linker/entity-linker.ts";
+import { CompromiseService } from "agents/linker/ner/compromise/ner.ts";
+import { PromptDisambiguationService } from "agents/linker/disambiguation/cli/disambiguation.ts";
+import { OramaSearchService } from "agents/linker/search/orama/search.ts";
+import { createDenoPersistedOramaTripleStore } from "agents/linker/search/orama/persist.ts";
 import { insertTurtle } from "agents/turtle/insert.ts";
 import shaclShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
   type: "text",
 };
+import { createManagedN3Store } from "./n3store/custom-n3store.ts";
+import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
 
 const config = {
   oramaPath: "./orama.json",
@@ -21,9 +21,11 @@ if (import.meta.main) {
   try {
     const model = google("models/gemini-2.5-flash");
     const { orama, persist: persistOrama } =
-      await createManagedOramaTripleStore(config.oramaPath);
+      await createDenoPersistedOramaTripleStore(config.oramaPath);
 
     const searchService = new OramaSearchService(orama);
+    const disambiguationService = new PromptDisambiguationService();
+    const nerService = new CompromiseService();
 
     // Create a managed N3Store for SPARQL queries.
     const { n3Store, persist: persistN3Store } = await createManagedN3Store(
@@ -35,7 +37,11 @@ if (import.meta.main) {
     n3Store.addInterceptor(oramaSyncInterceptor);
 
     // Use the new entity discovery service instead of NER.
-    const entityDiscoveryService = new EntityDiscoveryService(searchService);
+    const entityDiscoveryService = new EntityLinker(
+      nerService,
+      searchService,
+      disambiguationService,
+    );
 
     // TODO: Create interactive CLI flow.
     while (true) {
@@ -45,17 +51,21 @@ if (import.meta.main) {
         continue;
       }
 
-      console.log(
-        "Discovering entities using entity recognition and sparql reconnaissance...",
-      );
-      const discovery = await entityDiscoveryService.discoverEntities(
+      // console.log(
+      //   "Discovering entities using entity recognition and sparql reconnaissance...",
+      // );
+      // const discovery = await entityDiscoveryService.discoverEntities(
+      //   inputText,
+      // );
+
+      // // Perform automatic SPARQL reconnaissance
+      // console.log("Performing automatic SPARQL reconnaissance...");
+      // const reconnaissanceResults = await entityDiscoveryService
+      //   .performAutomaticReconnaissance(discovery, [n3Store]);
+
+      const linkedEntities = await entityDiscoveryService.linkEntities(
         inputText,
       );
-
-      // Perform automatic SPARQL reconnaissance
-      console.log("Performing automatic SPARQL reconnaissance...");
-      const reconnaissanceResults = await entityDiscoveryService
-        .performAutomaticReconnaissance(discovery, [n3Store]);
 
       console.log("Generating Turtle...");
       const timestamp = new Intl.DateTimeFormat(
@@ -73,10 +83,9 @@ if (import.meta.main) {
       ).format(new Date());
       const ttl = await generateTurtle(model, {
         inputText,
+        linkedEntities,
         timestamp,
         shaclShapes,
-        sources: [n3Store], // Pass the N3 store as a SPARQL source
-        reconnaissanceResults: reconnaissanceResults.queries, // Pass automatic reconnaissance results
       });
 
       // Add the generated Turtle to the N3 store for persistence.
