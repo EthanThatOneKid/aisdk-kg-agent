@@ -18,6 +18,7 @@ import { createManagedN3Store } from "./n3store/custom-n3store.ts";
 import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
 
 const config = {
+  fast: true,
   clean: true,
   verbose: true,
   oramaPath: "./orama.json",
@@ -79,12 +80,13 @@ if (import.meta.main) {
     );
 
     while (true) {
-      const inputText = "I went to the store today";
-      // const inputText = prompt("USER> ");
-      // if (!inputText) {
-      //   console.error("No input text provided");
-      //   continue;
-      // }
+      const inputText = config.fast
+        ? "I went to the store today"
+        : prompt("USER>");
+      if (!inputText) {
+        console.error("No input text provided");
+        continue;
+      }
 
       // Step 1: Generate Turtle with placeholders (fast, no external dependencies)
       if (config.verbose) {
@@ -168,8 +170,9 @@ if (import.meta.main) {
         );
       }
 
-      // Break after one pass for manual testing.
-      break;
+      if (config.fast) {
+        break;
+      }
     }
   } catch (error) {
     console.error("=== ERROR DETAILS ===");
