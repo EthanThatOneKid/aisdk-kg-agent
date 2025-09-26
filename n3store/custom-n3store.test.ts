@@ -1375,6 +1375,90 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
     assertEquals(store.size, 1);
   });
 
+  await t.step("DatasetCore add method chaining", () => {
+    const store = new CustomN3Store();
+    const quad1 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test1"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test1"),
+      DataFactory.defaultGraph(),
+    );
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test2"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test2"),
+      DataFactory.defaultGraph(),
+    );
+
+    const result = store.add(quad1).add(quad2);
+    assertEquals(result, store);
+    assertEquals(store.size, 2);
+  });
+
+  await t.step("DatasetCore delete method chaining", () => {
+    const store = new CustomN3Store();
+    const quad1 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test1"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test1"),
+      DataFactory.defaultGraph(),
+    );
+    const quad2 = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test2"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test2"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.add(quad1);
+    store.add(quad2);
+    assertEquals(store.size, 2);
+
+    const result = store.delete(quad1).delete(quad2);
+    assertEquals(result, store);
+    assertEquals(store.size, 0);
+  });
+
+  await t.step("DatasetCore has method with non-existent quad", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    assertEquals(store.has(quad), false);
+  });
+
+  await t.step("DatasetCore has method with existing quad", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.add(quad);
+    assertEquals(store.has(quad), true);
+  });
+
+  await t.step("DatasetCore has method after quad removal", () => {
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/test"),
+      DataFactory.namedNode("http://example.org/predicate"),
+      DataFactory.literal("test"),
+      DataFactory.defaultGraph(),
+    );
+
+    store.add(quad);
+    assertEquals(store.has(quad), true);
+    store.delete(quad);
+    assertEquals(store.has(quad), false);
+  });
+
   await t.step("match with empty store", () => {
     const store = new CustomN3Store();
     const matches = store.match();
@@ -1589,89 +1673,5 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
 
     store.removeQuad(quad);
     assertEquals(store.size, 0);
-  });
-
-  await t.step("DatasetCore add method chaining", () => {
-    const store = new CustomN3Store();
-    const quad1 = DataFactory.quad(
-      DataFactory.namedNode("http://example.org/test1"),
-      DataFactory.namedNode("http://example.org/predicate"),
-      DataFactory.literal("test1"),
-      DataFactory.defaultGraph(),
-    );
-    const quad2 = DataFactory.quad(
-      DataFactory.namedNode("http://example.org/test2"),
-      DataFactory.namedNode("http://example.org/predicate"),
-      DataFactory.literal("test2"),
-      DataFactory.defaultGraph(),
-    );
-
-    const result = store.add(quad1).add(quad2);
-    assertEquals(result, store);
-    assertEquals(store.size, 2);
-  });
-
-  await t.step("DatasetCore delete method chaining", () => {
-    const store = new CustomN3Store();
-    const quad1 = DataFactory.quad(
-      DataFactory.namedNode("http://example.org/test1"),
-      DataFactory.namedNode("http://example.org/predicate"),
-      DataFactory.literal("test1"),
-      DataFactory.defaultGraph(),
-    );
-    const quad2 = DataFactory.quad(
-      DataFactory.namedNode("http://example.org/test2"),
-      DataFactory.namedNode("http://example.org/predicate"),
-      DataFactory.literal("test2"),
-      DataFactory.defaultGraph(),
-    );
-
-    store.add(quad1);
-    store.add(quad2);
-    assertEquals(store.size, 2);
-
-    const result = store.delete(quad1).delete(quad2);
-    assertEquals(result, store);
-    assertEquals(store.size, 0);
-  });
-
-  await t.step("DatasetCore has method with non-existent quad", () => {
-    const store = new CustomN3Store();
-    const quad = DataFactory.quad(
-      DataFactory.namedNode("http://example.org/test"),
-      DataFactory.namedNode("http://example.org/predicate"),
-      DataFactory.literal("test"),
-      DataFactory.defaultGraph(),
-    );
-
-    assertEquals(store.has(quad), false);
-  });
-
-  await t.step("DatasetCore has method with existing quad", () => {
-    const store = new CustomN3Store();
-    const quad = DataFactory.quad(
-      DataFactory.namedNode("http://example.org/test"),
-      DataFactory.namedNode("http://example.org/predicate"),
-      DataFactory.literal("test"),
-      DataFactory.defaultGraph(),
-    );
-
-    store.add(quad);
-    assertEquals(store.has(quad), true);
-  });
-
-  await t.step("DatasetCore has method after quad removal", () => {
-    const store = new CustomN3Store();
-    const quad = DataFactory.quad(
-      DataFactory.namedNode("http://example.org/test"),
-      DataFactory.namedNode("http://example.org/predicate"),
-      DataFactory.literal("test"),
-      DataFactory.defaultGraph(),
-    );
-
-    store.add(quad);
-    assertEquals(store.has(quad), true);
-    store.delete(quad);
-    assertEquals(store.has(quad), false);
   });
 });
