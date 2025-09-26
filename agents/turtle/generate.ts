@@ -1,5 +1,6 @@
 import type { LanguageModel, ModelMessage } from "ai";
-import { generateText } from "ai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import { validateTurtle } from "./shacl/validate.ts";
 import { examples } from "./few-shot.ts";
 
@@ -12,6 +13,39 @@ interface GenerateTurtleContext {
   temperature?: number;
   verbose?: boolean;
 }
+
+interface ExtractedEntity {
+  placeholderId: string;
+  entityType: string;
+  entityName: string;
+  sourceText: string;
+}
+
+interface GenerateTurtleResult {
+  turtle: string;
+  entities: ExtractedEntity[];
+}
+
+// Zod schema for structured output
+const GenerateTurtleSchema = z.object({
+  turtle: z.string().describe(
+    "The generated Turtle RDF content with placeholder IDs",
+  ),
+  entities: z.array(z.object({
+    placeholderId: z.string().describe(
+      "The placeholder ID like 'PLACEHOLDER_ENTITY_1'",
+    ),
+    entityType: z.string().describe(
+      "The entity type like 'schema:Person' or 'schema:Event'",
+    ),
+    entityName: z.string().describe(
+      "The name of the entity extracted from the input",
+    ),
+    sourceText: z.string().describe(
+      "The original text snippet from the input that led to this entity",
+    ),
+  })).describe("Array of entities extracted from the input text"),
+});
 
 const defaultAllowedPrefixes = [
   "rdf",
@@ -29,7 +63,7 @@ const defaultAllowedPrefixes = [
 export async function generateTurtle(
   model: LanguageModel,
   context: GenerateTurtleContext,
-): Promise<string> {
+): Promise<GenerateTurtleResult> {
   const maxRetries = context.maxRetries ?? 3;
   const allowedPrefixes = context.allowedPrefixes ?? defaultAllowedPrefixes;
 
@@ -50,30 +84,19 @@ export async function generateTurtle(
   // 5. Core requirements
   const coreRequirements = [
     "Core Requirements:",
-    "- EVIDENCE-BASED ONLY: Create triples ONLY for information explicitly mentioned in the user input. Do not infer, assume, or fabricate any properties, relationships, or entities not directly stated. Do not add temporal information (times, dates, durations) unless explicitly provided. Do not add status information (completed, pending, etc.) unless explicitly stated",
-  ];
-
-  // Add entity-specific requirements.
-  coreRequirements.push(
-    "- PLACEHOLDER ENTITIES: Use placeholder IDs for all entities",
-    "- ID RESOLUTION STRATEGY: Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
-    "- MANDATORY: Use placeholder IDs that will be replaced with generated IDs afterward",
-  );
-
-  // Add common requirements.
-  coreRequirements.push(
-    "- PLACEHOLDER IDs: Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
-    "- NO HARDCODED IDs: Never use hardcoded IDs like 'meetup1', 'action1', 'event1', etc.",
-    `- Use only allowlisted prefixes: ${
+    "EVIDENCE-BASED ONLY: Create triples ONLY for information explicitly mentioned in the user input. Do not infer, assume, or fabricate any properties, relationships, or entities not directly stated. Do not add temporal information (times, dates, durations) unless explicitly provided. Do not add status information (completed, pending, etc.) unless explicitly stated.",
+    "PLACEHOLDER ENTITIES: Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities that will be replaced with generated IDs afterward.",
+    "NO HARDCODED IDs: Never use hardcoded IDs like 'meetup1', 'action1', 'event1', etc.",
+    `Use only allowlisted prefixes: ${
       allowedPrefixes.join(", ")
-    }. Expand to full IRIs instead of introducing new prefixes`,
-    "- Prefer schema.org vocabulary for Actions, Events, CreativeWorks, and Places",
-    "- Capture ONLY episode information explicitly mentioned: agent, object, location",
-    "- Use typed literals with xsd (xsd:date, xsd:dateTime, xsd:decimal, xsd:duration)",
-    "- Prefer named HTTP(S) IRIs over blank nodes whenever possible",
-    "- Reuse identical IRIs across triples; do not alias or paraphrase",
-    "- DESCRIPTIVE CONTENT: For Actions and Events, include schema:name and schema:description predicates when the input provides descriptive information",
-  );
+    }. Expand to full IRIs instead of introducing new prefixes.`,
+    "Prefer schema.org vocabulary for Actions, Events, CreativeWorks, and Places.",
+    "Capture ONLY episode information explicitly mentioned: agent, object, location.",
+    "Use typed literals with xsd (xsd:date, xsd:dateTime, xsd:decimal, xsd:duration).",
+    "Prefer named HTTP(S) IRIs over blank nodes whenever possible.",
+    "Reuse identical IRIs across triples; do not alias or paraphrase.",
+    "DESCRIPTIVE CONTENT: For Actions and Events, include schema:name and schema:description predicates when the input provides descriptive information.",
+  ];
 
   // 6. Examples and guidance
   const examplesGuidance = [
@@ -84,48 +107,32 @@ export async function generateTurtle(
   // 7. Workflow steps
   const workflowSteps = [
     "EXECUTION WORKFLOW - DO THIS NOW:",
-  ];
-
-  // Add workflow steps.
-  workflowSteps.push(
-    "1. Identify entities from input text",
-    "2. Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
-    "3. Generate Turtle with placeholder IDs",
-  );
-
-  // Add common guidance.
-  workflowSteps.push(
+    "Identify entities from input text.",
+    "Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities.",
+    "Generate Turtle with placeholder IDs.",
     "CRITICAL: Generate Turtle output immediately. Focus on creating valid structure with placeholder IDs.",
-  );
+  ];
 
   // 8. Output formatting
   const outputFormatting =
-    "Output contract: Only output valid Turtle. No prose, no code fences, no explanations. Start with prefix declarations, then entity definitions. Use placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc. that will be replaced with generated IDs afterward.";
+    "Output contract: You must provide a structured JSON object with two fields: 'turtle' (the Turtle RDF content) and 'entities' (array of extracted entity information). The turtle field should contain valid Turtle with placeholder IDs. The entities field should contain an array of objects with placeholderId, entityType, entityName, and sourceText fields. Use placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc. that will be replaced with generated IDs afterward.";
 
   // 9. Validation checklist
   const validationChecklist = [
     "Final validation checklist:",
+    "PRIORITY: Identified entities from input text and used placeholder IDs for all.",
+    "Followed ID resolution strategy: placeholder IDs for all entities.",
+    "Mapped entities to placeholder IDs.",
+    "Used placeholder IDs ONLY for entities with no existing ID found.",
+    "Used only allowlisted prefixes.",
+    "Included ONLY agent/object/location explicitly mentioned in input (no inferred time/status).",
+    "Added descriptive content (schema:name, schema:description) for Actions and Events.",
+    "Used typed literals with xsd.",
+    "No hardcoded IDs.",
+    "Used language tag 'en' for all English literals.",
+    "No blank nodes.",
+    "Ensured Turtle parses correctly.",
   ];
-
-  // Add validation items.
-  validationChecklist.push(
-    "(1) PRIORITY: Identified entities from input text and used placeholder IDs for all",
-    "(2) Followed ID resolution strategy: placeholder IDs for all entities",
-    "(5) Mapped entities to placeholder IDs",
-  );
-
-  // Add common validation items.
-  validationChecklist.push(
-    "(3) Used placeholder IDs ONLY for entities with no existing ID found",
-    "(4) Used only allowlisted prefixes",
-    "(6) Included ONLY agent/object/location explicitly mentioned in input (no inferred time/status)",
-    "(7) Used schema.org Actions/Events/CreativeWorks/Places based on explicit mentions only",
-    "(8) Added descriptive content (schema:name, schema:description) for Actions and Events",
-    "(9) Used typed literals with xsd",
-    "(10) Preferred named nodes over blank nodes",
-    "(11) Ensured Turtle parses correctly",
-    "(12) CRITICAL: Did not fabricate, infer, or add any information not explicitly stated in the user input",
-  );
 
   // Combine all sections.
   const systemPrompt = [
@@ -165,40 +172,31 @@ export async function generateTurtle(
       console.log(`Attempt ${attempt}/${maxRetries} generating Turtle...`);
     }
 
-    const result = await generateText({
+    const result = await generateObject({
       model,
       temperature: context.temperature ?? 0.1,
       system: systemPrompt,
       messages,
+      schema: GenerateTurtleSchema,
+      schemaName: "TurtleWithEntities",
+      schemaDescription:
+        "Generated Turtle RDF content with extracted entity information",
     });
 
-    // Get the generated text (tools are handled automatically by generateText).
-    const text = result.text;
     if (context.verbose) {
-      console.log(`📝 Generated text length: ${text.length}`);
-      console.log(
-        `📝 Generated text preview: "${text.substring(0, 100)}..."`,
-      );
-      console.log(`🔄 Total steps executed: ${result.steps.length}`);
+      console.log(`📝 Generated Turtle length: ${result.object.turtle.length}`);
+      console.log(`📝 Generated Turtle:\n${result.object.turtle}`);
+      console.log(`🔍 Extracted ${result.object.entities.length} entities:`);
+      result.object.entities.forEach((entity, index) => {
+        console.log(
+          `  ${
+            index + 1
+          }. ${entity.placeholderId}: ${entity.entityName} (${entity.entityType}) from "${entity.sourceText}"`,
+        );
+      });
     }
 
-    // Log tool calls from all steps.
-    const allToolCalls = result.steps.flatMap((step) => step.toolCalls);
-    if (context.verbose) {
-      console.log(`🔧 Total tool calls: ${allToolCalls.length}`);
-
-      // Log tool call details
-      if (allToolCalls.length > 0) {
-        console.log(`🔧 Tool calls made:`);
-        allToolCalls.forEach((call, index) => {
-          console.log(
-            `  ${index + 1}. ${call.toolName}: ${JSON.stringify(call)}`,
-          );
-        });
-      }
-    }
-
-    const trimmed = trimFence(text.trim());
+    const trimmed = trimFence(result.object.turtle.trim());
 
     // Check if the sanitized text is empty
     if (!trimmed || trimmed.trim().length === 0) {
@@ -212,7 +210,10 @@ export async function generateTurtle(
       }
 
       // Add the response messages to conversation history for multi-step calls.
-      messages.push(...result.response.messages);
+      messages.push({
+        role: "assistant",
+        content: JSON.stringify(result.object),
+      });
       messages.push({ role: "user", content: feedback });
       continue;
     }
@@ -234,15 +235,20 @@ export async function generateTurtle(
       }
 
       // Add the response messages to conversation history for multi-step calls.
-      messages.push(...result.response.messages);
+      messages.push({
+        role: "assistant",
+        content: JSON.stringify(result.object),
+      });
       messages.push({ role: "user", content: feedback });
       continue;
     }
 
     if (context.verbose) {
-      console.log(`🎉 Success! Generated valid Turtle`);
+      console.log(
+        `🎉 Success! Generated valid Turtle with ${result.object.entities.length} entities`,
+      );
     }
-    return trimmed;
+    return result.object;
   }
 
   throw new Error(

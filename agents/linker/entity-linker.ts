@@ -38,6 +38,7 @@ export class EntityLinker {
       placeholderId: string;
       entityType: string;
       entityName: string;
+      sourceText: string;
     }>,
   ): Promise<LinkedEntity[]> {
     return await Promise.all(extractedEntities.map(async (extractedEntity) => {

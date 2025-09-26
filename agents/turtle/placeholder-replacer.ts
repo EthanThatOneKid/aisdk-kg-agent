@@ -44,3 +44,50 @@ export function extractPlaceholderIds(turtleContent: string): string[] {
   const placeholders = turtleContent.match(placeholderRegex);
   return placeholders ? [...new Set(placeholders)] : [];
 }
+
+interface ExtractedEntity {
+  placeholderId: string;
+  entityType: string;
+  entityName: string;
+  sourceText: string;
+}
+
+interface LinkedEntity {
+  entity: {
+    text: string;
+    offset: { index: number; start: number; length: number };
+  };
+  hit: {
+    subject: string;
+    score: number;
+  } | null;
+}
+
+/**
+ * Creates a mapping from placeholder IDs to final IDs based on linked entities.
+ */
+export function createPlaceholderMapping(
+  extractedEntities: ExtractedEntity[],
+  linkedEntities: LinkedEntity[],
+): Map<string, string> {
+  const mapping = new Map<string, string>();
+
+  for (const entity of extractedEntities) {
+    const linkedEntity = linkedEntities.find((le) =>
+      le.entity.text.toLowerCase() === entity.entityName.toLowerCase()
+    );
+
+    if (linkedEntity?.hit) {
+      mapping.set(entity.placeholderId, linkedEntity.hit.subject);
+    } else {
+      const generatedId = genid(crypto.randomUUID());
+      mapping.set(entity.placeholderId, generatedId);
+    }
+  }
+
+  return mapping;
+}
+
+export function genid(id: string): string {
+  return `https://fartlabs.org/.well-known/genid/${id}`;
+}

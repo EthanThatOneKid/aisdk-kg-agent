@@ -1,7 +1,7 @@
 import { Store } from "n3";
 import type { DatasetCore, Quad, Term } from "@rdfjs/types";
 import type { QuadInterceptor } from "./interceptor/interceptor.ts";
-import { exportTurtle, insertTurtle } from "agents/turtle/insert.ts";
+import { exportTurtle, insertTurtle } from "agents/turtle/turtle.ts";
 
 export class CustomN3Store extends Store {
   public constructor(private interceptors: QuadInterceptor[] = []) {

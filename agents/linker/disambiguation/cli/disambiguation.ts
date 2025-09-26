@@ -11,8 +11,7 @@ import type {
 export class PromptDisambiguationService implements DisambiguationService {
   // TODO: Add auto-confirm suggestions.
   constructor(
-    private readonly message = (text: string) =>
-      `Please select the associated candidate: ${text}`,
+    private readonly message = (text: string) => text,
   ) {}
 
   disambiguate(data: SearchResponse): Promise<SearchHit | null> {

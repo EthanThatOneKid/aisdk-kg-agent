@@ -1,6 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import { DataFactory, Quad, Store } from "n3";
-import { exportTurtle, insertTurtle } from "./insert.ts";
+import { exportTurtle, insertTurtle } from "./turtle.ts";
 
 Deno.test("insertTurtle: basic single triple", () => {
   const store = new Store();

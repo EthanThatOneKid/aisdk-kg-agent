@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { QueryEngine } from "@comunica/query-sparql";
 import { DataFactory } from "n3";
-import { insertTurtle } from "agents/turtle/insert.ts";
+import { insertTurtle } from "agents/turtle/turtle.ts";
 import { CustomN3Store } from "./custom-n3store.ts";
 import { CountInterceptor } from "./interceptor/count-interceptor.ts";
 import { ErrorInterceptor } from "./interceptor/error-interceptor.ts";

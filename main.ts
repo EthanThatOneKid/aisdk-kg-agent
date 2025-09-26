@@ -5,12 +5,11 @@ import { CompromiseService } from "agents/linker/ner/compromise/ner.ts";
 import { PromptDisambiguationService } from "agents/linker/disambiguation/cli/disambiguation.ts";
 import { OramaSearchService } from "agents/linker/search/orama/search.ts";
 import { createDenoPersistedOramaTripleStore } from "agents/linker/search/orama/persist.ts";
-import { insertTurtle } from "agents/turtle/insert.ts";
+import { insertTurtle } from "agents/turtle/turtle.ts";
 import {
   createPlaceholderMapping,
-  extractEntitiesFromTurtle,
-} from "agents/turtle/entity-linker.ts";
-import { replacePlaceholderIds } from "agents/turtle/placeholder-replacer.ts";
+  replacePlaceholderIds,
+} from "agents/turtle/placeholder-replacer.ts";
 import shaclShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
   type: "text",
 };
@@ -105,18 +104,18 @@ if (import.meta.main) {
           hour12: false,
         },
       ).format(new Date());
-      const placeholderTurtle = await generateTurtle(model, {
+      const result = await generateTurtle(model, {
         inputText,
         timestamp,
         shaclShapes,
         verbose: config.verbose,
       });
 
-      // Step 2: Extract entities from the generated Turtle
+      // Step 2: Use entities directly from structured output
       if (config.verbose) {
-        console.log("Extracting entities from generated Turtle...");
+        console.log("Using entities from structured output...");
       }
-      const extractedEntities = extractEntitiesFromTurtle(placeholderTurtle);
+      const extractedEntities = result.entities;
       if (config.verbose) {
         console.log(
           `Found ${extractedEntities.length} entities:`,
@@ -137,7 +136,7 @@ if (import.meta.main) {
         console.log("Creating placeholder mapping...");
       }
       const placeholderMapping = createPlaceholderMapping(
-        placeholderTurtle,
+        extractedEntities,
         linkedEntities,
       );
 
@@ -145,7 +144,7 @@ if (import.meta.main) {
       if (config.verbose) {
         console.log("Replacing placeholders with final IDs...");
       }
-      const ttl = replacePlaceholderIds(placeholderTurtle, placeholderMapping);
+      const ttl = replacePlaceholderIds(result.turtle, placeholderMapping);
 
       // Debug: Log the actual generated Turtle content.
       if (config.verbose) {
@@ -216,4 +215,8 @@ if (import.meta.main) {
   } finally {
     console.log("Done.");
   }
+}
+
+export function genid(id: string): string {
+  return `https://fartlabs.org/.well-known/genid/${id}`;
 }
