@@ -68,25 +68,15 @@ if (import.meta.main) {
       disambiguationService,
     );
 
-    // TODO: Create interactive CLI flow.
     while (true) {
-      const inputText = prompt("USER> ");
-      if (!inputText) {
-        console.error("No input text provided");
-        continue;
-      }
+      const inputText = "I went to the store today";
+      // const inputText = prompt("USER> ");
+      // if (!inputText) {
+      //   console.error("No input text provided");
+      //   continue;
+      // }
 
-      // console.log(
-      //   "Discovering entities using entity recognition and sparql reconnaissance...",
-      // );
-      // const discovery = await entityDiscoveryService.discoverEntities(
-      //   inputText,
-      // );
-
-      // // Perform automatic SPARQL reconnaissance
-      // console.log("Performing automatic SPARQL reconnaissance...");
-      // const reconnaissanceResults = await entityDiscoveryService
-      //   .performAutomaticReconnaissance(discovery, [n3Store]);
+      // TODO: Perform automatic SPARQL reconnaissance
 
       const linkedEntities = await entityDiscoveryService.linkEntities(
         inputText,
@@ -131,6 +121,9 @@ if (import.meta.main) {
       console.log(
         `Added generated Turtle to N3 store. Total triples: ${n3Store.size}`,
       );
+
+      // Break after one pass for manual testing.
+      break;
     }
   } catch (error) {
     console.error("=== ERROR DETAILS ===");

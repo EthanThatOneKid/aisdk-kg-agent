@@ -3,7 +3,7 @@ import { generateText } from "ai";
 import type { LinkedEntity } from "agents/linker/entity-linker.ts";
 import { validateTurtle } from "./shacl/validate.ts";
 import { examples } from "./few-shot.ts";
-import { generateIdTool } from "./tools/generate-id/tool.ts";
+import { replacePlaceholderIds } from "./placeholder-replacer.ts";
 
 interface GenerateTurtleContext {
   inputText: string;
@@ -41,7 +41,7 @@ export async function generateTurtle(
 
   // 1. Task context
   const taskContext =
-    "You are an expert episodic memory extractor for RDF knowledge graphs. Your role is to convert natural language stream of consciousness into valid Turtle (TTL) using schema.org vocabulary to faithfully capture episodes (who/what/when/where).";
+    "You are an expert episodic memory extractor for RDF knowledge graphs. Your role is to convert natural language stream of consciousness into valid Turtle (TTL) using schema.org vocabulary to faithfully capture episodes (who/what/when/where). Generate Turtle with placeholder IDs using the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc. that will be replaced with generated IDs afterward.";
 
   // 2. Tone context
   const toneContext =
@@ -49,7 +49,7 @@ export async function generateTurtle(
 
   // 3. Background data
   const backgroundData =
-    "You have access to schema.org vocabulary, SHACL validation shapes, and a generateId tool for creating unique HTTP URIs. Use the provided references to map surface strings to subject IRIs exactly.";
+    "You have access to schema.org vocabulary and SHACL validation shapes. Use placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc. that will be replaced with generated IDs afterward.";
 
   // 4. Linked entities section
   let linkedEntitiesSection = "";
@@ -75,32 +75,31 @@ export async function generateTurtle(
   // Add entity-specific requirements based on context.
   if (hasLinkedEntities) {
     coreRequirements.push(
-      "- LINKED ENTITIES: Use the linked entities provided above. Entities with existing IDs should use those IDs. Entities without matches need new IDs generated.",
-      "- ID RESOLUTION STRATEGY: For each entity in the linked entities list: (1) If it has a hit with an existing ID, use that ID, (2) If it has no hit (null), use generateId tool to create a new ID",
-      "- MANDATORY: Use the existing entity IDs from the linked entities data for entities that were found. Generate new IDs only for entities without matches (hit is null).",
+      "- LINKED ENTITIES: Use the linked entities provided above. Entities with existing IDs should use those IDs. Entities without matches need placeholder IDs.",
+      "- ID RESOLUTION STRATEGY: For each entity in the linked entities list: (1) If it has a hit with an existing ID, use that ID, (2) If it has no hit (null), use placeholder ID like 'PLACEHOLDER_ENTITY_1'",
+      "- MANDATORY: Use the existing entity IDs from the linked entities data for entities that were found. Use placeholder IDs only for entities without matches (hit is null).",
     );
   } else {
     coreRequirements.push(
-      "- NEW ENTITIES: No linked entities were provided, so you can proceed directly to generating new IDs for all entities",
-      "- ID RESOLUTION STRATEGY: Since no linked entities were provided, use generateId tool to create new IDs for all entities",
-      "- MANDATORY: Before generating any Turtle, you MUST generate new IDs for all entities using the generateId tool",
+      "- NEW ENTITIES: No linked entities were provided, so use placeholder IDs for all entities",
+      "- ID RESOLUTION STRATEGY: Since no linked entities were provided, use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
+      "- MANDATORY: Use placeholder IDs that will be replaced with generated IDs afterward",
     );
   }
 
   // Add common requirements.
   coreRequirements.push(
-    "- CRITICAL: NEVER use hardcoded IDs like 'meetup1', 'action1', 'event1', etc. Always use proper ID resolution",
-    "- MANDATORY TOOL USAGE: You MUST call the generateId tool for EVERY entity before creating any Turtle triples. Do not create any triples without first generating IDs for all entities.",
-    "- NO HARDCODED URIs: Never use hardcoded URIs like 'https://fartlabs.org/.well-known/genid/world!_CreativeWork'. Always call generateId tool to get proper IDs.",
+    "- PLACEHOLDER IDs: Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
+    "- NO HARDCODED IDs: Never use hardcoded IDs like 'meetup1', 'action1', 'event1', etc.",
     `- Use only allowlisted prefixes: ${
       allowedPrefixes.join(", ")
     }. Expand to full IRIs instead of introducing new prefixes`,
     "- Prefer schema.org vocabulary for Actions, Events, CreativeWorks, and Places",
-    "- Capture ONLY episode information explicitly mentioned: agent, object, location. Do not add time/status unless explicitly stated",
+    "- Capture ONLY episode information explicitly mentioned: agent, object, location",
     "- Use typed literals with xsd (xsd:date, xsd:dateTime, xsd:decimal, xsd:duration)",
     "- Prefer named HTTP(S) IRIs over blank nodes whenever possible",
     "- Reuse identical IRIs across triples; do not alias or paraphrase",
-    "- DESCRIPTIVE CONTENT: For Actions and Events, include schema:name and schema:description predicates when the input provides descriptive information. Use the natural language input to create meaningful labels and descriptions. You may also use rdfs:label for additional labeling.",
+    "- DESCRIPTIVE CONTENT: For Actions and Events, include schema:name and schema:description predicates when the input provides descriptive information",
   );
 
   // 6. Examples and guidance
@@ -112,40 +111,32 @@ export async function generateTurtle(
 
   // 7. Workflow steps
   const workflowSteps = [
-    "MANDATORY WORKFLOW - YOU MUST FOLLOW THESE STEPS:",
+    "EXECUTION WORKFLOW - DO THIS NOW:",
   ];
 
   // Add workflow steps based on context.
   if (hasLinkedEntities) {
     workflowSteps.push(
-      "STEP 1: USE PROVIDED LINKED ENTITIES - Use the linked entities provided above. These have already been processed and linked to the knowledge graph where possible.",
-      "STEP 2: ID RESOLUTION FROM LINKED ENTITIES - For each linked entity: (1) If it has a hit with an existing ID, use that ID, (2) If it has no hit (null), use generateId tool to create a new ID",
-      "STEP 3: Map entities to resolved IRIs (from linked entity hits or generated IDs)",
-      "STEP 4: Determine appropriate schema.org types (Action, Event, CreativeWork, Place) based ONLY on explicit mentions",
-      "STEP 5: Capture ONLY relationships and properties explicitly mentioned (agent, object, location) - do not infer or add properties, especially temporal or status information",
-      "STEP 6: Add descriptive content (schema:name, schema:description) for Actions and Events based on the natural language input",
-      "STEP 7: Generate valid Turtle with proper prefixes and syntax, including ONLY evidenced information",
+      "1. Use linked entities data for existing IDs where available",
+      "2. For entities without existing IDs, use placeholder IDs like 'PLACEHOLDER_ENTITY_1'",
+      "3. Generate Turtle with existing IDs and placeholder IDs",
     );
   } else {
     workflowSteps.push(
-      "STEP 1: NATURAL ENTITY IDENTIFICATION - Use your natural language understanding to identify all entities EXPLICITLY mentioned in the input (people, places, actions, events, objects). Do not rely on preprocessing - identify entities directly from the text.",
-      "STEP 2: ID RESOLUTION - For each identified entity, use the generateId tool to create a new ID",
-      "STEP 3: Map entities to resolved IRIs (from generated IDs)",
-      "STEP 4: Determine appropriate schema.org types (Action, Event, CreativeWork, Place) based ONLY on explicit mentions",
-      "STEP 5: Capture ONLY relationships and properties explicitly mentioned (agent, object, location) - do not infer or add properties, especially temporal or status information",
-      "STEP 6: Add descriptive content (schema:name, schema:description) for Actions and Events based on the natural language input",
-      "STEP 7: Generate valid Turtle with proper prefixes and syntax, including ONLY evidenced information",
+      "1. Identify entities from input text",
+      "2. Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
+      "3. Generate Turtle with placeholder IDs",
     );
   }
 
   // Add common guidance.
   workflowSteps.push(
-    "ENTITY IDENTIFICATION: Trust your natural language understanding over any preprocessing. Identify entities directly from the input text context.",
+    "CRITICAL: Generate Turtle output immediately. Focus on creating valid structure with placeholder IDs.",
   );
 
   // 8. Output formatting
   const outputFormatting =
-    "Output contract: Only output valid Turtle. No prose, no code fences, no explanations. Start with prefix declarations, then entity definitions.";
+    "Output contract: Only output valid Turtle. No prose, no code fences, no explanations. Start with prefix declarations, then entity definitions. Use placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc. that will be replaced with generated IDs afterward.";
 
   // 9. Validation checklist
   const validationChecklist = [
@@ -156,20 +147,20 @@ export async function generateTurtle(
   if (hasLinkedEntities) {
     validationChecklist.push(
       "(1) PRIORITY: Used linked entities data to resolve existing IDs where available",
-      "(2) Followed ID resolution strategy: linked entity hits → generateId (for entities without hits)",
+      "(2) Followed ID resolution strategy: linked entity hits → placeholder IDs (for entities without hits)",
       "(5) Mapped entities to resolved IRIs (linked entity hits or generated)",
     );
   } else {
     validationChecklist.push(
       "(1) PRIORITY: Identified entities from input text and generated new IDs for all",
-      "(2) Followed ID resolution strategy: generateId for all entities",
+      "(2) Followed ID resolution strategy: placeholder IDs for all entities",
       "(5) Mapped entities to resolved IRIs (generated)",
     );
   }
 
   // Add common validation items.
   validationChecklist.push(
-    "(3) Called generateId tool ONLY for entities with no existing ID found",
+    "(3) Used placeholder IDs ONLY for entities with no existing ID found",
     "(4) Used only allowlisted prefixes",
     "(6) Included ONLY agent/object/location explicitly mentioned in input (no inferred time/status)",
     "(7) Used schema.org Actions/Events/CreativeWorks/Places based on explicit mentions only",
@@ -220,13 +211,6 @@ export async function generateTurtle(
     const result = await generateText({
       model,
       temperature: context.temperature ?? 0.1,
-      tools: {
-        generateId: generateIdTool({
-          generate: () =>
-            `https://fartlabs.org/.well-known/genid/${crypto.randomUUID()}`,
-          verbose: false,
-        }),
-      },
       system: systemPrompt,
       messages,
     });
@@ -266,8 +250,8 @@ export async function generateTurtle(
     if (!trimmed || trimmed.trim().length === 0) {
       const feedback = [
         "The previous output was empty or contained no valid Turtle content.",
-        "You must generate actual Turtle triples using the IDs from the generateId tool calls.",
-        "Please output valid Turtle with proper triples using the generated IDs.",
+        "You must generate actual Turtle triples using placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc. that will be replaced with generated IDs afterward.",
+        "Please output valid Turtle with proper triples using placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc.",
       ].join("\n\n");
       console.log("Empty output feedback:", feedback);
 
@@ -298,7 +282,12 @@ export async function generateTurtle(
     }
 
     console.log(`🎉 Success! Generated valid Turtle`);
-    return trimmed;
+
+    // Replace placeholder IDs with generated IDs
+    const finalTurtle = await replacePlaceholderIds(trimmed);
+    console.log(`🔄 Replaced placeholder IDs with generated IDs`);
+
+    return finalTurtle;
   }
 
   throw new Error(
