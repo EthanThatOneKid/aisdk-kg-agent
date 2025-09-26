@@ -1,0 +1,105 @@
+Task start deno run -A --env --unstable-raw-imports main.ts
+Orama file ./orama.json not found, creating new instance...
+No existing db.ttl found, starting with fresh data
+USER>  Went to the store today
+Generating Turtle...
+Attempt 1/3 generating Turtle...
+📝 Generated text length: 1
+📝 Generated text preview: "
+..."
+🔄 Total steps executed: 1
+🔧 Total tool calls: 4
+🔧 Tool calls made:
+  1. generateId: {"type":"tool-call","toolCallId":"PNjuanA1N1c60VWe","toolName":"generateId","input":{"entityName":"the store","entityType":"Place"}}
+  2. generateId: {"type":"tool-call","toolCallId":"rpFI4EyMDHhFouQs","toolName":"generateId","input":{"entityName":"today","entityType":"Date"}}
+  3. generateId: {"type":"tool-call","toolCallId":"qVJu7VDkuvI2YtUJ","toolName":"generateId","input":{"entityName":"GoAction","entityType":"Action"}}
+  4. generateId: {"type":"tool-call","toolCallId":"TMEk9CZyek105INE","toolName":"generateId","input":{"entityName":"User","entityType":"Person"}}
+✅ Using linked entities data: 2 entities provided
+🔍 Raw text before trimFence: ""\n""
+🔍 Text after trimFence: """"
+Empty output feedback: The previous output was empty or contained no valid Turtle content.       
+
+You must generate actual Turtle triples using the IDs from the generateId tool calls.
+
+Please output valid Turtle with proper triples using the generated IDs.
+Attempt 2/3 generating Turtle...
+📝 Generated text length: 813
+📝 Generated text preview: "@prefix schema: <https://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https:/..."
+🔄 Total steps executed: 1
+🔧 Total tool calls: 0
+✅ Using linked entities data: 2 entities provided
+🔍 Raw text before trimFence: ""@prefix schema: <https://schema.org/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\n<https://fartlabs.org/.well-known/genid/063848e0-6495-4c04-a4de-ba81876b45ad> a schema:GoAction;\n  schema:name \"Went to the store\";\n  schema:description \"Went to the store today\";\n  schema:agent <https://fartlabs.org/.well-known/genid/1245917c-d416-49ea-a271-c8895b01be6d>;\n  schema:location <https://fartlabs.org/.well-known/genid/fc43c518-cde3-405d-99fb-68ddfea8e9a5>;\n  schema:startTime \"2025-09-25T17:18:37\"^^xsd:dateTime;\n  schema:actionStatus schema:CompletedActionStatus .\n\n<https://fartlabs.org/.well-known/genid/fc43c518-cde3-405d-99fb-68ddfea8e9a5> a schema:Store;\n  schema:name \"the store\" .\n\n<https://fartlabs.org/.well-known/genid/1245917c-d416-49ea-a271-c8895b01be6d> a schema:Person;\n  schema:name \"User\" ."" 
+🔍 Text after trimFence: ""@prefix schema: <https://schema.org/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\n<https://fartlabs.org/.well-known/genid/063848e0-6495-4c04-a4de-ba81876b45ad> a schema:GoAction;\n  schema:name \"Went to the store\";\n  schema:description \"Went to the store today\";\n  schema:agent <https://fartlabs.org/.well-known/genid/1245917c-d416-49ea-a271-c8895b01be6d>;\n  schema:location <https://fartlabs.org/.well-known/genid/fc43c518-cde3-405d-99fb-68ddfea8e9a5>;\n  schema:startTime \"2025-09-25T17:18:37\"^^xsd:dateTime;\n  schema:actionStatus schema:CompletedActionStatus .\n\n<https://fartlabs.org/.well-known/genid/fc43c518-cde3-405d-99fb-68ddfea8e9a5> a schema:Store;\n  schema:name \"the store\" .\n\n<https://fartlabs.org/.well-known/genid/1245917c-d416-49ea-a271-c8895b01be6d> a schema:Person;\n  schema:name \"User\" .""      
+🎉 Success! Generated valid Turtle
+🔍 Generated Turtle content:
+Length: 813
+Content: "@prefix schema: <https://schema.org/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\n<https://fartlabs.org/.well-known/genid/063848e0-6495-4c04-a4de-ba81876b45ad> a schema:GoAction;\n  schema:name \"Went to the store\";\n  schema:description \"Went to the store today\";\n  schema:agent <https://fartlabs.org/.well-known/genid/1245917c-d416-49ea-a271-c8895b01be6d>;\n  schema:location <https://fartlabs.org/.well-known/genid/fc43c518-cde3-405d-99fb-68ddfea8e9a5>;\n  schema:startTime \"2025-09-25T17:18:37\"^^xsd:dateTime;\n  schema:actionStatus schema:CompletedActionStatus .\n\n<https://fartlabs.org/.well-known/genid/fc43c518-cde3-405d-99fb-68ddfea8e9a5> a schema:Store;\n  schema:name \"the store\" .\n\n<https://fartlabs.org/.well-known/genid/1245917c-d416-49ea-a271-c8895b01be6d> a schema:Person;\n  schema:name \"User\" ."
+Raw content: @prefix schema: <https://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://fartlabs.org/.well-known/genid/063848e0-6495-4c04-a4de-ba81876b45ad> a schema:GoAction; 
+  schema:name "Went to the store";
+  schema:description "Went to the store today";
+  schema:agent <https://fartlabs.org/.well-known/genid/1245917c-d416-49ea-a271-c8895b01be6d>;    
+  schema:location <https://fartlabs.org/.well-known/genid/fc43c518-cde3-405d-99fb-68ddfea8e9a5>; 
+  schema:startTime "2025-09-25T17:18:37"^^xsd:dateTime;
+  schema:actionStatus schema:CompletedActionStatus .
+
+<https://fartlabs.org/.well-known/genid/fc43c518-cde3-405d-99fb-68ddfea8e9a5> a schema:Store;    
+  schema:name "the store" .
+
+<https://fartlabs.org/.well-known/genid/1245917c-d416-49ea-a271-c8895b01be6d> a schema:Person;   
+  schema:name "User" .
+Added generated Turtle to N3 store. Total triples: 11
+USER>  Found a pokemon card on the ground
+Generating Turtle...
+Attempt 1/3 generating Turtle...
+📝 Generated text length: 1
+📝 Generated text preview: "
+..."
+🔄 Total steps executed: 1
+🔧 Total tool calls: 2
+🔧 Tool calls made:
+  1. generateId: {"type":"tool-call","toolCallId":"B4y9LfBmPThADjNy","toolName":"generateId","input":{"entityName":"found action","entityType":"Action"}}
+  2. generateId: {"type":"tool-call","toolCallId":"52Bgmur9a0dvHOoF","toolName":"generateId","input":{"entityName":"a pokemon card","entityType":"Thing"}}
+✅ Using linked entities data: 2 entities provided
+🔍 Raw text before trimFence: ""\n""
+🔍 Text after trimFence: """"
+Empty output feedback: The previous output was empty or contained no valid Turtle content.       
+
+You must generate actual Turtle triples using the IDs from the generateId tool calls.
+
+Please output valid Turtle with proper triples using the generated IDs.
+Attempt 2/3 generating Turtle...
+📝 Generated text length: 716
+📝 Generated text preview: "@prefix schema: <https://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https:/..."
+🔄 Total steps executed: 1
+🔧 Total tool calls: 0
+✅ Using linked entities data: 2 entities provided
+🔍 Raw text before trimFence: ""@prefix schema: <https://schema.org/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\n<https://fartlabs.org/.well-known/genid/7a84a2fb-fb26-4ce0-bdbe-24e9d9fb91ab> a schema:FindAction;\n  schema:name \"Found a pokemon card\";\n  schema:description \"Found a pokemon card on the ground\";\n  schema:object <https://fartlabs.org/.well-known/genid/168f24b3-1b8a-4f7e-a18d-d905e434213c>;\n  schema:location <https://fartlabs.org/.well-known/genid/063848e0-6495-4c04-a4de-ba81876b45ad>;\n  schema:actionStatus schema:CompletedActionStatus;\n  schema:startTime \"2025-09-25T17:19:31\"^^xsd:dateTime .\n\n<https://fartlabs.org/.well-known/genid/168f24b3-1b8a-4f7e-a18d-d905e434213c> a schema:Thing;\n  schema:name \"a pokemon card\" .""      
+🔍 Text after trimFence: ""@prefix schema: <https://schema.org/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\n<https://fartlabs.org/.well-known/genid/7a84a2fb-fb26-4ce0-bdbe-24e9d9fb91ab> a schema:FindAction;\n  schema:name \"Found a pokemon card\";\n  schema:description \"Found a pokemon card on the ground\";\n  schema:object <https://fartlabs.org/.well-known/genid/168f24b3-1b8a-4f7e-a18d-d905e434213c>;\n  schema:location <https://fartlabs.org/.well-known/genid/063848e0-6495-4c04-a4de-ba81876b45ad>;\n  schema:actionStatus schema:CompletedActionStatus;\n  schema:startTime \"2025-09-25T17:19:31\"^^xsd:dateTime .\n\n<https://fartlabs.org/.well-known/genid/168f24b3-1b8a-4f7e-a18d-d905e434213c> a schema:Thing;\n  schema:name \"a pokemon card\" .""
+🎉 Success! Generated valid Turtle
+🔍 Generated Turtle content:
+Length: 716
+Content: "@prefix schema: <https://schema.org/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\n<https://fartlabs.org/.well-known/genid/7a84a2fb-fb26-4ce0-bdbe-24e9d9fb91ab> a schema:FindAction;\n  schema:name \"Found a pokemon card\";\n  schema:description \"Found a pokemon card on the ground\";\n  schema:object <https://fartlabs.org/.well-known/genid/168f24b3-1b8a-4f7e-a18d-d905e434213c>;\n  schema:location <https://fartlabs.org/.well-known/genid/063848e0-6495-4c04-a4de-ba81876b45ad>;\n  schema:actionStatus schema:CompletedActionStatus;\n  schema:startTime \"2025-09-25T17:19:31\"^^xsd:dateTime .\n\n<https://fartlabs.org/.well-known/genid/168f24b3-1b8a-4f7e-a18d-d905e434213c> a schema:Thing;\n  schema:name \"a pokemon card\" ."
+Raw content: @prefix schema: <https://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://fartlabs.org/.well-known/genid/7a84a2fb-fb26-4ce0-bdbe-24e9d9fb91ab> a schema:FindAction;
+  schema:name "Found a pokemon card";
+  schema:description "Found a pokemon card on the ground";
+  schema:object <https://fartlabs.org/.well-known/genid/168f24b3-1b8a-4f7e-a18d-d905e434213c>;   
+  schema:location <https://fartlabs.org/.well-known/genid/063848e0-6495-4c04-a4de-ba81876b45ad>; 
+  schema:actionStatus schema:CompletedActionStatus;
+  schema:startTime "2025-09-25T17:19:31"^^xsd:dateTime .
+
+<https://fartlabs.org/.well-known/genid/168f24b3-1b8a-4f7e-a18d-d905e434213c> a schema:Thing;    
+  schema:name "a pokemon card" .
+Added generated Turtle to N3 store. Total triples: 20
+USER>

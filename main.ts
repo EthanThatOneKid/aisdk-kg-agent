@@ -13,12 +13,37 @@ import { createManagedN3Store } from "./n3store/custom-n3store.ts";
 import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
 
 const config = {
+  clean: true,
   oramaPath: "./orama.json",
   n3StorePath: "./db.ttl",
 };
 
 if (import.meta.main) {
   try {
+    if (config.clean) {
+      // Clean up existing files to start fresh.
+      try {
+        await Deno.remove(config.oramaPath);
+        console.log(`🗑️ Deleted existing ${config.oramaPath}`);
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) {
+          console.warn(`Warning: Could not delete ${config.oramaPath}:`, error);
+        }
+      }
+
+      try {
+        await Deno.remove(config.n3StorePath);
+        console.log(`🗑️ Deleted existing ${config.n3StorePath}`);
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) {
+          console.warn(
+            `Warning: Could not delete ${config.n3StorePath}:`,
+            error,
+          );
+        }
+      }
+    }
+
     const model = google("models/gemini-2.5-flash");
     const { orama, persist: persistOrama } =
       await createDenoPersistedOramaTripleStore(config.oramaPath);
@@ -45,7 +70,7 @@ if (import.meta.main) {
 
     // TODO: Create interactive CLI flow.
     while (true) {
-      const inputText = await prompt("USER>");
+      const inputText = prompt("USER> ");
       if (!inputText) {
         console.error("No input text provided");
         continue;
@@ -87,6 +112,12 @@ if (import.meta.main) {
         timestamp,
         shaclShapes,
       });
+
+      // Debug: Log the actual generated Turtle content.
+      console.log("🔍 Generated Turtle content:");
+      console.log("Length:", ttl.length);
+      console.log("Content:", JSON.stringify(ttl));
+      console.log("Raw content:", ttl);
 
       // Add the generated Turtle to the N3 store for persistence.
       insertTurtle(n3Store, ttl);

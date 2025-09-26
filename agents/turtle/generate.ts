@@ -90,6 +90,8 @@ export async function generateTurtle(
   // Add common requirements.
   coreRequirements.push(
     "- CRITICAL: NEVER use hardcoded IDs like 'meetup1', 'action1', 'event1', etc. Always use proper ID resolution",
+    "- MANDATORY TOOL USAGE: You MUST call the generateId tool for EVERY entity before creating any Turtle triples. Do not create any triples without first generating IDs for all entities.",
+    "- NO HARDCODED URIs: Never use hardcoded URIs like 'https://fartlabs.org/.well-known/genid/world!_CreativeWork'. Always call generateId tool to get proper IDs.",
     `- Use only allowlisted prefixes: ${
       allowedPrefixes.join(", ")
     }. Expand to full IRIs instead of introducing new prefixes`,
@@ -241,6 +243,16 @@ export async function generateTurtle(
     const allToolCalls = result.steps.flatMap((step) => step.toolCalls);
     console.log(`🔧 Total tool calls: ${allToolCalls.length}`);
 
+    // Log tool call details
+    if (allToolCalls.length > 0) {
+      console.log(`🔧 Tool calls made:`);
+      allToolCalls.forEach((call, index) => {
+        console.log(
+          `  ${index + 1}. ${call.toolName}: ${JSON.stringify(call)}`,
+        );
+      });
+    }
+
     // Log linked entities usage if provided.
     if (context.linkedEntities && context.linkedEntities.length > 0) {
       console.log(
@@ -248,47 +260,45 @@ export async function generateTurtle(
       );
     }
 
-    const sanitized = trimFence(text.trim());
-    // First, N3 syntax check via SHACL validator with no schema (it parses data).
-    const syntaxRes = await validateTurtle({ graphText: sanitized });
-    if (syntaxRes.isValid) {
-      if (context.shaclShapes) {
-        const shaclReport = await validateTurtle({
-          graphText: sanitized,
-          schemaText: context.shaclShapes,
-        });
-        if (shaclReport.isValid) {
-          console.log(`🎉 Success! Generated valid Turtle`);
-          return sanitized;
-        }
+    const trimmed = trimFence(text.trim());
 
-        const feedback = [
-          "The previous Turtle output failed SHACL validation.",
-          `Validation errors: ${shaclReport.errorText ?? "Unknown"}`,
-          "Please correct the errors and re-output valid Turtle only.",
-        ].join("\n\n");
-        console.log("SHACL feedback:", feedback);
+    // Check if the sanitized text is empty
+    if (!trimmed || trimmed.trim().length === 0) {
+      const feedback = [
+        "The previous output was empty or contained no valid Turtle content.",
+        "You must generate actual Turtle triples using the IDs from the generateId tool calls.",
+        "Please output valid Turtle with proper triples using the generated IDs.",
+      ].join("\n\n");
+      console.log("Empty output feedback:", feedback);
 
-        // Add the response messages to conversation history for multi-step calls.
-        messages.push(...result.response.messages);
-        messages.push({ role: "user", content: feedback });
-        continue;
-      }
-
-      console.log(`🎉 Success! Generated valid Turtle`);
-      return sanitized;
+      // Add the response messages to conversation history for multi-step calls.
+      messages.push(...result.response.messages);
+      messages.push({ role: "user", content: feedback });
+      continue;
     }
 
-    const feedback = [
-      "The previous Turtle output was invalid.",
-      `Parser error: ${syntaxRes.errorText ?? "Unknown"}`,
-      "Please correct the errors and re-output valid Turtle only.",
-    ].join("\n\n");
-    console.log("Syntax feedback:", feedback);
+    // Validate Turtle syntax and SHACL compliance (if schema provided)
+    const validationResult = await validateTurtle({
+      graphText: trimmed,
+      schemaText: context.shaclShapes,
+    });
 
-    // Add the response messages to conversation history for multi-step calls.
-    messages.push(...result.response.messages);
-    messages.push({ role: "user", content: feedback });
+    if (!validationResult.isValid) {
+      const feedback = [
+        "The previous Turtle output was invalid.",
+        `Validation errors: ${validationResult.errorText ?? "Unknown"}`,
+        "Please correct the errors and re-output valid Turtle only.",
+      ].join("\n\n");
+      console.log("Validation feedback:", feedback);
+
+      // Add the response messages to conversation history for multi-step calls.
+      messages.push(...result.response.messages);
+      messages.push({ role: "user", content: feedback });
+      continue;
+    }
+
+    console.log(`🎉 Success! Generated valid Turtle`);
+    return trimmed;
   }
 
   throw new Error(
