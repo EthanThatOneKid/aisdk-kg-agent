@@ -1,7 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   extractPlaceholderIds,
-  hasPlaceholderIds,
   replacePlaceholderIds,
 } from "./placeholder-replacer.ts";
 
@@ -42,23 +41,25 @@ Deno.test("extractPlaceholderIds: returns empty array when no placeholders", () 
   assertEquals(placeholders, []);
 });
 
-Deno.test("hasPlaceholderIds: detects placeholders", () => {
+Deno.test("extractPlaceholderIds: detects placeholders", () => {
   const turtle = `
 <PLACEHOLDER_ENTITY_1> a schema:Person .
   `;
 
-  assert(hasPlaceholderIds(turtle));
+  const placeholders = extractPlaceholderIds(turtle);
+  assert(placeholders.length > 0);
 });
 
-Deno.test("hasPlaceholderIds: returns false when no placeholders", () => {
+Deno.test("extractPlaceholderIds: returns empty array when no placeholders", () => {
   const turtle = `
 <https://example.org/person1> a schema:Person .
   `;
 
-  assert(!hasPlaceholderIds(turtle));
+  const placeholders = extractPlaceholderIds(turtle);
+  assertEquals(placeholders.length, 0);
 });
 
-Deno.test("replacePlaceholderIds: replaces placeholders with generated IDs", async () => {
+Deno.test("replacePlaceholderIds: replaces placeholders with provided mapping", () => {
   const turtle = `
 @prefix schema: <https://schema.org/> .
 
@@ -69,13 +70,19 @@ Deno.test("replacePlaceholderIds: replaces placeholders with generated IDs", asy
     schema:name "The Store" .
   `;
 
-  const result = await replacePlaceholderIds(turtle);
+  const mapping = new Map([
+    ["PLACEHOLDER_ENTITY_1", "https://example.org/person1"],
+    ["PLACEHOLDER_ENTITY_2", "https://example.org/store1"],
+  ]);
+
+  const result = replacePlaceholderIds(turtle, mapping);
 
   // Should not contain any placeholders
-  assert(!hasPlaceholderIds(result));
+  assert(extractPlaceholderIds(result).length === 0);
 
-  // Should contain generated IDs (UUIDs)
-  assert(result.includes("https://fartlabs.org/.well-known/genid/"));
+  // Should contain the provided IDs
+  assert(result.includes("https://example.org/person1"));
+  assert(result.includes("https://example.org/store1"));
 
   // Should preserve the structure
   assert(result.includes("schema:Person"));
@@ -84,33 +91,35 @@ Deno.test("replacePlaceholderIds: replaces placeholders with generated IDs", asy
   assert(result.includes('schema:name "The Store"'));
 });
 
-Deno.test("replacePlaceholderIds: handles duplicate placeholders", async () => {
+Deno.test("replacePlaceholderIds: handles duplicate placeholders", () => {
   const turtle = `
 <PLACEHOLDER_ENTITY_1> a schema:Person .
 <PLACEHOLDER_ENTITY_1> schema:name "John" .
   `;
 
-  const result = await replacePlaceholderIds(turtle);
+  const mapping = new Map([
+    ["PLACEHOLDER_ENTITY_1", "https://example.org/person1"],
+  ]);
+
+  const result = replacePlaceholderIds(turtle, mapping);
 
   // Should not contain any placeholders
-  assert(!hasPlaceholderIds(result));
+  assert(extractPlaceholderIds(result).length === 0);
 
   // Should have the same ID used for both occurrences
-  const idMatches = result.match(
-    /https:\/\/fartlabs\.org\/\.well-known\/genid\/[a-f0-9-]+/g,
-  );
+  const idMatches = result.match(/https:\/\/example\.org\/person1/g);
   assert(idMatches);
   assertEquals(idMatches.length, 2);
-  assertEquals(idMatches[0], idMatches[1]); // Same ID used twice
 });
 
-Deno.test("replacePlaceholderIds: returns original content when no placeholders", async () => {
+Deno.test("replacePlaceholderIds: returns original content when no placeholders", () => {
   const turtle = `
 @prefix schema: <https://schema.org/> .
 
 <https://example.org/person1> a schema:Person .
   `;
 
-  const result = await replacePlaceholderIds(turtle);
+  const mapping = new Map();
+  const result = replacePlaceholderIds(turtle, mapping);
   assertEquals(result, turtle);
 });

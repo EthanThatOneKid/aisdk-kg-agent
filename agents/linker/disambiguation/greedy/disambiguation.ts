@@ -5,9 +5,9 @@ import type {
 } from "agents/linker/search/service.ts";
 
 /**
- * DefaultDisambiguationService resolves the candidate with the highest score.
+ * GreedyDisambiguationService resolves the candidate with the highest score.
  */
-export class DefaultDisambiguationService implements DisambiguationService {
+export class GreedyDisambiguationService implements DisambiguationService {
   disambiguate(data: SearchResponse): Promise<SearchHit | null> {
     const hit = data.hits.at(0);
     if (hit === undefined) {

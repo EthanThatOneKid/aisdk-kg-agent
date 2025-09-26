@@ -1,18 +1,16 @@
 import type { LanguageModel, ModelMessage } from "ai";
 import { generateText } from "ai";
-import type { LinkedEntity } from "agents/linker/entity-linker.ts";
 import { validateTurtle } from "./shacl/validate.ts";
 import { examples } from "./few-shot.ts";
-import { replacePlaceholderIds } from "./placeholder-replacer.ts";
 
 interface GenerateTurtleContext {
   inputText: string;
-  linkedEntities?: LinkedEntity[];
   allowedPrefixes?: string[];
   timestamp?: string;
   maxRetries?: number;
   shaclShapes?: string;
   temperature?: number;
+  verbose?: boolean;
 }
 
 const defaultAllowedPrefixes = [
@@ -36,8 +34,6 @@ export async function generateTurtle(
   const allowedPrefixes = context.allowedPrefixes ?? defaultAllowedPrefixes;
 
   // Build prompt sections programmatically.
-  const hasLinkedEntities = context.linkedEntities &&
-    context.linkedEntities.length > 0;
 
   // 1. Task context
   const taskContext =
@@ -51,41 +47,18 @@ export async function generateTurtle(
   const backgroundData =
     "You have access to schema.org vocabulary and SHACL validation shapes. Use placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc. that will be replaced with generated IDs afterward.";
 
-  // 4. Linked entities section
-  let linkedEntitiesSection = "";
-  if (hasLinkedEntities) {
-    const linkedEntitiesList = context.linkedEntities!.map((linkedEntity) => {
-      const entityText = linkedEntity.entity.text;
-      const hit = linkedEntity.hit;
-      if (hit) {
-        return `Entity "${entityText}" -> Found existing ID: ${hit.subject} (confidence: ${hit.score})`;
-      } else {
-        return `Entity "${entityText}" -> No existing match found (needs new ID)`;
-      }
-    }).join("\n");
-    linkedEntitiesSection = `\nLINKED ENTITIES:\n${linkedEntitiesList}\n`;
-  }
-
   // 5. Core requirements
   const coreRequirements = [
     "Core Requirements:",
     "- EVIDENCE-BASED ONLY: Create triples ONLY for information explicitly mentioned in the user input. Do not infer, assume, or fabricate any properties, relationships, or entities not directly stated. Do not add temporal information (times, dates, durations) unless explicitly provided. Do not add status information (completed, pending, etc.) unless explicitly stated",
   ];
 
-  // Add entity-specific requirements based on context.
-  if (hasLinkedEntities) {
-    coreRequirements.push(
-      "- LINKED ENTITIES: Use the linked entities provided above. Entities with existing IDs should use those IDs. Entities without matches need placeholder IDs.",
-      "- ID RESOLUTION STRATEGY: For each entity in the linked entities list: (1) If it has a hit with an existing ID, use that ID, (2) If it has no hit (null), use placeholder ID like 'PLACEHOLDER_ENTITY_1'",
-      "- MANDATORY: Use the existing entity IDs from the linked entities data for entities that were found. Use placeholder IDs only for entities without matches (hit is null).",
-    );
-  } else {
-    coreRequirements.push(
-      "- NEW ENTITIES: No linked entities were provided, so use placeholder IDs for all entities",
-      "- ID RESOLUTION STRATEGY: Since no linked entities were provided, use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
-      "- MANDATORY: Use placeholder IDs that will be replaced with generated IDs afterward",
-    );
-  }
+  // Add entity-specific requirements.
+  coreRequirements.push(
+    "- PLACEHOLDER ENTITIES: Use placeholder IDs for all entities",
+    "- ID RESOLUTION STRATEGY: Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
+    "- MANDATORY: Use placeholder IDs that will be replaced with generated IDs afterward",
+  );
 
   // Add common requirements.
   coreRequirements.push(
@@ -105,7 +78,6 @@ export async function generateTurtle(
   // 6. Examples and guidance
   const examplesGuidance = [
     "See the provided few-shot examples for proper Turtle structure and entity modeling patterns.",
-    "IMPORTANT: If input says 'I met Kyle yesterday morning', do NOT add specific times like '09:00:00' or statuses like 'CompletedActionStatus' - only include what was explicitly mentioned.",
     "DESCRIPTIVE EXAMPLE: For input 'I met up with Kyle at the Lost Bean cafe', the Action should include: schema:name 'Meet up with Kyle' and schema:description 'Meeting with Kyle at the Lost Bean cafe'.",
   ];
 
@@ -114,20 +86,12 @@ export async function generateTurtle(
     "EXECUTION WORKFLOW - DO THIS NOW:",
   ];
 
-  // Add workflow steps based on context.
-  if (hasLinkedEntities) {
-    workflowSteps.push(
-      "1. Use linked entities data for existing IDs where available",
-      "2. For entities without existing IDs, use placeholder IDs like 'PLACEHOLDER_ENTITY_1'",
-      "3. Generate Turtle with existing IDs and placeholder IDs",
-    );
-  } else {
-    workflowSteps.push(
-      "1. Identify entities from input text",
-      "2. Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
-      "3. Generate Turtle with placeholder IDs",
-    );
-  }
+  // Add workflow steps.
+  workflowSteps.push(
+    "1. Identify entities from input text",
+    "2. Use placeholder IDs like 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2' for all entities",
+    "3. Generate Turtle with placeholder IDs",
+  );
 
   // Add common guidance.
   workflowSteps.push(
@@ -143,20 +107,12 @@ export async function generateTurtle(
     "Final validation checklist:",
   ];
 
-  // Add context-specific validation items.
-  if (hasLinkedEntities) {
-    validationChecklist.push(
-      "(1) PRIORITY: Used linked entities data to resolve existing IDs where available",
-      "(2) Followed ID resolution strategy: linked entity hits → placeholder IDs (for entities without hits)",
-      "(5) Mapped entities to resolved IRIs (linked entity hits or generated)",
-    );
-  } else {
-    validationChecklist.push(
-      "(1) PRIORITY: Identified entities from input text and generated new IDs for all",
-      "(2) Followed ID resolution strategy: placeholder IDs for all entities",
-      "(5) Mapped entities to resolved IRIs (generated)",
-    );
-  }
+  // Add validation items.
+  validationChecklist.push(
+    "(1) PRIORITY: Identified entities from input text and used placeholder IDs for all",
+    "(2) Followed ID resolution strategy: placeholder IDs for all entities",
+    "(5) Mapped entities to placeholder IDs",
+  );
 
   // Add common validation items.
   validationChecklist.push(
@@ -176,7 +132,6 @@ export async function generateTurtle(
     taskContext,
     toneContext,
     backgroundData,
-    linkedEntitiesSection,
     ...coreRequirements,
     ...examplesGuidance,
     "Previous context: You are processing user input with entity references and optional timestamp.",
@@ -206,7 +161,9 @@ export async function generateTurtle(
   ];
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(`Attempt ${attempt}/${maxRetries} generating Turtle...`);
+    if (context.verbose) {
+      console.log(`Attempt ${attempt}/${maxRetries} generating Turtle...`);
+    }
 
     const result = await generateText({
       model,
@@ -217,31 +174,28 @@ export async function generateTurtle(
 
     // Get the generated text (tools are handled automatically by generateText).
     const text = result.text;
-    console.log(`📝 Generated text length: ${text.length}`);
-    console.log(
-      `📝 Generated text preview: "${text.substring(0, 100)}..."`,
-    );
-    console.log(`🔄 Total steps executed: ${result.steps.length}`);
+    if (context.verbose) {
+      console.log(`📝 Generated text length: ${text.length}`);
+      console.log(
+        `📝 Generated text preview: "${text.substring(0, 100)}..."`,
+      );
+      console.log(`🔄 Total steps executed: ${result.steps.length}`);
+    }
 
     // Log tool calls from all steps.
     const allToolCalls = result.steps.flatMap((step) => step.toolCalls);
-    console.log(`🔧 Total tool calls: ${allToolCalls.length}`);
+    if (context.verbose) {
+      console.log(`🔧 Total tool calls: ${allToolCalls.length}`);
 
-    // Log tool call details
-    if (allToolCalls.length > 0) {
-      console.log(`🔧 Tool calls made:`);
-      allToolCalls.forEach((call, index) => {
-        console.log(
-          `  ${index + 1}. ${call.toolName}: ${JSON.stringify(call)}`,
-        );
-      });
-    }
-
-    // Log linked entities usage if provided.
-    if (context.linkedEntities && context.linkedEntities.length > 0) {
-      console.log(
-        `✅ Using linked entities data: ${context.linkedEntities.length} entities provided`,
-      );
+      // Log tool call details
+      if (allToolCalls.length > 0) {
+        console.log(`🔧 Tool calls made:`);
+        allToolCalls.forEach((call, index) => {
+          console.log(
+            `  ${index + 1}. ${call.toolName}: ${JSON.stringify(call)}`,
+          );
+        });
+      }
     }
 
     const trimmed = trimFence(text.trim());
@@ -253,7 +207,9 @@ export async function generateTurtle(
         "You must generate actual Turtle triples using placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc. that will be replaced with generated IDs afterward.",
         "Please output valid Turtle with proper triples using placeholder IDs in the format 'PLACEHOLDER_ENTITY_1', 'PLACEHOLDER_ENTITY_2', etc.",
       ].join("\n\n");
-      console.log("Empty output feedback:", feedback);
+      if (context.verbose) {
+        console.log("Empty output feedback:", feedback);
+      }
 
       // Add the response messages to conversation history for multi-step calls.
       messages.push(...result.response.messages);
@@ -273,7 +229,9 @@ export async function generateTurtle(
         `Validation errors: ${validationResult.errorText ?? "Unknown"}`,
         "Please correct the errors and re-output valid Turtle only.",
       ].join("\n\n");
-      console.log("Validation feedback:", feedback);
+      if (context.verbose) {
+        console.log("Validation feedback:", feedback);
+      }
 
       // Add the response messages to conversation history for multi-step calls.
       messages.push(...result.response.messages);
@@ -281,13 +239,10 @@ export async function generateTurtle(
       continue;
     }
 
-    console.log(`🎉 Success! Generated valid Turtle`);
-
-    // Replace placeholder IDs with generated IDs
-    const finalTurtle = await replacePlaceholderIds(trimmed);
-    console.log(`🔄 Replaced placeholder IDs with generated IDs`);
-
-    return finalTurtle;
+    if (context.verbose) {
+      console.log(`🎉 Success! Generated valid Turtle`);
+    }
+    return trimmed;
   }
 
   throw new Error(

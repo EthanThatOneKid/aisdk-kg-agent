@@ -33,6 +33,31 @@ export class EntityLinker {
     })));
   }
 
+  async linkExtractedEntities(
+    extractedEntities: Array<{
+      placeholderId: string;
+      entityType: string;
+      entityName: string;
+    }>,
+  ): Promise<LinkedEntity[]> {
+    return await Promise.all(extractedEntities.map(async (extractedEntity) => {
+      // Create a NerEntity from the extracted entity
+      const nerEntity: NerEntity = {
+        text: extractedEntity.entityName,
+        offset: {
+          index: 0, // Not relevant for extracted entities
+          start: 0, // Not relevant for extracted entities
+          length: extractedEntity.entityName.length, // Not relevant for extracted entities
+        },
+      };
+
+      return {
+        entity: nerEntity,
+        hit: await this.linkEntity(nerEntity),
+      };
+    }));
+  }
+
   async linkEntity(entity: NerEntity): Promise<SearchHit | null> {
     const response = await this.search.search(entity);
     if (response.hits.length === 0) {

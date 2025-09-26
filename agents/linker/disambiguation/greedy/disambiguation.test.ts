@@ -1,20 +1,20 @@
 import { assertEquals, assertExists } from "@std/assert";
-import { DefaultDisambiguationService } from "./disambiguation.ts";
+import { GreedyDisambiguationService } from "./disambiguation.ts";
 import type {
   SearchHit,
   SearchResponse,
 } from "agents/linker/search/service.ts";
 
-Deno.test("DefaultDisambiguationService - constructor", () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - constructor", () => {
+  const service = new GreedyDisambiguationService();
 
   // Verify the service is created successfully.
   assertExists(service);
   assertEquals(typeof service.disambiguate, "function");
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with empty hits", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with empty hits", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with empty hits array.
   const searchResponse: SearchResponse = {
@@ -26,8 +26,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with empty hits", async (
   assertEquals(result, null);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with single hit", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with single hit", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with single hit.
   const searchHit: SearchHit = {
@@ -46,8 +46,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with single hit", async (
   assertEquals(result.score, 0.95);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with multiple hits", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with multiple hits", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with multiple hits - should return the first one (highest score).
   const searchHits: SearchHit[] = [
@@ -76,8 +76,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with multiple hits", asyn
   assertEquals(result.score, 0.95);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with zero scores", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with zero scores", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with hits that have zero scores.
   const searchHits: SearchHit[] = [
@@ -102,8 +102,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with zero scores", async 
   assertEquals(result.score, 0.0);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with negative scores", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with negative scores", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with hits that have negative scores.
   const searchHits: SearchHit[] = [
@@ -128,8 +128,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with negative scores", as
   assertEquals(result.score, -0.5);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with very high scores", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with very high scores", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with hits that have very high scores.
   const searchHits: SearchHit[] = [
@@ -154,8 +154,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with very high scores", a
   assertEquals(result.score, 99.99);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with identical scores", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with identical scores", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with hits that have identical scores - should return the first one.
   const searchHits: SearchHit[] = [
@@ -184,8 +184,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with identical scores", a
   assertEquals(result.score, 0.85);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with mixed score types", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with mixed score types", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with hits that have mixed positive and negative scores.
   const searchHits: SearchHit[] = [
@@ -214,8 +214,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with mixed score types", 
   assertEquals(result.score, 0.5);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with special characters in subjects", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with special characters in subjects", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with subjects containing special characters.
   const searchHits: SearchHit[] = [
@@ -244,8 +244,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with special characters i
   assertEquals(result.score, 0.9);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with long subjects", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with long subjects", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with very long subject URIs.
   const longSubject =
@@ -273,8 +273,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with long subjects", asyn
   assertEquals(result.score, 0.95);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with empty text", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with empty text", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with empty search text.
   const searchHits: SearchHit[] = [
@@ -295,8 +295,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with empty text", async (
   assertEquals(result.score, 0.5);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with whitespace text", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with whitespace text", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with whitespace-only search text.
   const searchHits: SearchHit[] = [
@@ -317,8 +317,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with whitespace text", as
   assertEquals(result.score, 0.3);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate with single element array", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate with single element array", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test with array containing only one element.
   const searchHits: SearchHit[] = [
@@ -339,8 +339,8 @@ Deno.test("DefaultDisambiguationService - disambiguate with single element array
   assertEquals(result.score, 0.42);
 });
 
-Deno.test("DefaultDisambiguationService - disambiguate preserves original hit object", async () => {
-  const service = new DefaultDisambiguationService();
+Deno.test("GreedyDisambiguationService - disambiguate preserves original hit object", async () => {
+  const service = new GreedyDisambiguationService();
 
   // Test that the returned hit is the exact same object reference.
   const searchHits: SearchHit[] = [

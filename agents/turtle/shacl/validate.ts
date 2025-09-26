@@ -88,33 +88,3 @@ export function parseTurtle(turtleText: string): n3.Store {
   store.addQuads(quads);
   return store;
 }
-
-/**
- * trimTurtle trims Turtle text to remove unnecessary prefixes and periods.
- */
-export function trimTurtle(turtleText: string): string {
-  let trimmed = turtleText
-    .replace(/```(?:turtle|rdf|ttl)?\n?/g, "")
-    .replace(/\n?```/g, "");
-
-  const prefixIndex = trimmed.indexOf("@prefix");
-  if (prefixIndex > 0) {
-    trimmed = trimmed.substring(prefixIndex);
-  }
-
-  const lastPeriodIndex = trimmed.lastIndexOf(".");
-  if (lastPeriodIndex > 0) {
-    trimmed = trimmed.substring(0, lastPeriodIndex + 1);
-  }
-
-  trimmed = trimmed.trim();
-  if (!trimmed.startsWith("@prefix")) {
-    return "ERROR: INVALID_TURTLE_FORMAT: Missing @prefix declarations";
-  }
-
-  if (!trimmed.endsWith(".")) {
-    return "ERROR: INVALID_TURTLE_FORMAT: Missing terminating period";
-  }
-
-  return trimmed;
-}

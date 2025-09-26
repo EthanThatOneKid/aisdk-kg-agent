@@ -6,6 +6,11 @@ import { PromptDisambiguationService } from "agents/linker/disambiguation/cli/di
 import { OramaSearchService } from "agents/linker/search/orama/search.ts";
 import { createDenoPersistedOramaTripleStore } from "agents/linker/search/orama/persist.ts";
 import { insertTurtle } from "agents/turtle/insert.ts";
+import {
+  createPlaceholderMapping,
+  extractEntitiesFromTurtle,
+} from "agents/turtle/entity-linker.ts";
+import { replacePlaceholderIds } from "agents/turtle/placeholder-replacer.ts";
 import shaclShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
   type: "text",
 };
@@ -14,6 +19,7 @@ import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-intercept
 
 const config = {
   clean: true,
+  verbose: true,
   oramaPath: "./orama.json",
   n3StorePath: "./db.ttl",
 };
@@ -24,7 +30,9 @@ if (import.meta.main) {
       // Clean up existing files to start fresh.
       try {
         await Deno.remove(config.oramaPath);
-        console.log(`🗑️ Deleted existing ${config.oramaPath}`);
+        if (config.verbose) {
+          console.log(`🗑️ Deleted existing ${config.oramaPath}`);
+        }
       } catch (error) {
         if (!(error instanceof Deno.errors.NotFound)) {
           console.warn(`Warning: Could not delete ${config.oramaPath}:`, error);
@@ -33,7 +41,9 @@ if (import.meta.main) {
 
       try {
         await Deno.remove(config.n3StorePath);
-        console.log(`🗑️ Deleted existing ${config.n3StorePath}`);
+        if (config.verbose) {
+          console.log(`🗑️ Deleted existing ${config.n3StorePath}`);
+        }
       } catch (error) {
         if (!(error instanceof Deno.errors.NotFound)) {
           console.warn(
@@ -76,13 +86,10 @@ if (import.meta.main) {
       //   continue;
       // }
 
-      // TODO: Perform automatic SPARQL reconnaissance
-
-      const linkedEntities = await entityDiscoveryService.linkEntities(
-        inputText,
-      );
-
-      console.log("Generating Turtle...");
+      // Step 1: Generate Turtle with placeholders (fast, no external dependencies)
+      if (config.verbose) {
+        console.log("Generating Turtle with placeholders...");
+      }
       const timestamp = new Intl.DateTimeFormat(
         "en-US",
         {
@@ -96,18 +103,55 @@ if (import.meta.main) {
           hour12: false,
         },
       ).format(new Date());
-      const ttl = await generateTurtle(model, {
+      const placeholderTurtle = await generateTurtle(model, {
         inputText,
-        linkedEntities,
         timestamp,
         shaclShapes,
+        verbose: config.verbose,
       });
 
+      // Step 2: Extract entities from the generated Turtle
+      if (config.verbose) {
+        console.log("Extracting entities from generated Turtle...");
+      }
+      const extractedEntities = extractEntitiesFromTurtle(placeholderTurtle);
+      if (config.verbose) {
+        console.log(
+          `Found ${extractedEntities.length} entities:`,
+          extractedEntities,
+        );
+      }
+
+      // Step 3: Perform entity linking on the extracted entities
+      if (config.verbose) {
+        console.log("Performing entity linking on extracted entities...");
+      }
+      const linkedEntities = await entityDiscoveryService.linkExtractedEntities(
+        extractedEntities,
+      );
+
+      // Step 4: Create placeholder mapping using linked entities
+      if (config.verbose) {
+        console.log("Creating placeholder mapping...");
+      }
+      const placeholderMapping = createPlaceholderMapping(
+        placeholderTurtle,
+        linkedEntities,
+      );
+
+      // Step 5: Replace placeholders with final IDs
+      if (config.verbose) {
+        console.log("Replacing placeholders with final IDs...");
+      }
+      const ttl = replacePlaceholderIds(placeholderTurtle, placeholderMapping);
+
       // Debug: Log the actual generated Turtle content.
-      console.log("🔍 Generated Turtle content:");
-      console.log("Length:", ttl.length);
-      console.log("Content:", JSON.stringify(ttl));
-      console.log("Raw content:", ttl);
+      if (config.verbose) {
+        console.log("🔍 Generated Turtle content:");
+        console.log("Length:", ttl.length);
+        console.log("Content:", JSON.stringify(ttl));
+        console.log("Raw content:", ttl);
+      }
 
       // Add the generated Turtle to the N3 store for persistence.
       insertTurtle(n3Store, ttl);
@@ -118,9 +162,11 @@ if (import.meta.main) {
       // Save the Orama database for persistence.
       await persistOrama();
 
-      console.log(
-        `Added generated Turtle to N3 store. Total triples: ${n3Store.size}`,
-      );
+      if (config.verbose) {
+        console.log(
+          `Added generated Turtle to N3 store. Total triples: ${n3Store.size}`,
+        );
+      }
 
       // Break after one pass for manual testing.
       break;

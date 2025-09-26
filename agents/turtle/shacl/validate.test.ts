@@ -1,7 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   parseTurtle,
-  trimTurtle,
   validateTurtle,
   type ValidatorRequest,
 } from "./validate.ts";
@@ -110,20 +109,6 @@ Deno.test("parseTurtle returns store with quads", () => {
   // deno-lint-ignore no-explicit-any
   const size = (store as any).size ?? 0;
   assert(size > 0);
-});
-
-Deno.test("trimTurtle strips fences and validates basic structure", () => {
-  const fenced =
-    "```turtle\n@prefix ex: <http://example.org/> .\nex:a ex:b ex:c .\n```";
-  const trimmed = trimTurtle(fenced);
-  assert(!trimmed.includes("```"));
-  assert(trimmed.startsWith("@prefix") || trimmed.length > 0);
-
-  const noPrefix = "ex:a ex:b ex:c .";
-  const resultNoPrefix = trimTurtle(noPrefix);
-  assert(resultNoPrefix.startsWith("ERROR:"));
-  // Note: trimTurtle trims to the last period anywhere in the text (including prefixes),
-  // so a missing period on the data triple may not yield an error. We only assert fencing behavior here.
 });
 
 Deno.test("validateTurtle: generated example against datashapes schema", async () => {

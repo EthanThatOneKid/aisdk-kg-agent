@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { EntityLinker } from "./entity-linker.ts";
 import { CompromiseService } from "./ner/compromise/ner.ts";
-import { DefaultDisambiguationService } from "./disambiguation/default/disambiguation.ts";
+import { GreedyDisambiguationService } from "./disambiguation/greedy/disambiguation.ts";
 import { OramaSearchService } from "./search/orama/search.ts";
 import {
   createOramaTripleStore,
@@ -12,7 +12,7 @@ Deno.test("EntityLinker - constructor", () => {
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -26,7 +26,7 @@ Deno.test("EntityLinker - linkEntities with no entities", async () => {
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -41,7 +41,7 @@ Deno.test("EntityLinker - linkEntities with single entity, no search results", a
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -61,7 +61,7 @@ Deno.test("EntityLinker - linkEntities with single entity, with search results",
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -96,7 +96,7 @@ Deno.test("EntityLinker - linkEntities with multiple entities", async () => {
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -137,7 +137,7 @@ Deno.test("EntityLinker - linkEntities with multiple entities", async () => {
 Deno.test("EntityLinker - linkEntity with no search results", async () => {
   const store = createOramaTripleStore();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(
     new CompromiseService(),
@@ -159,7 +159,7 @@ Deno.test("EntityLinker - linkEntity with no search results", async () => {
 Deno.test("EntityLinker - linkEntity with search results", async () => {
   const store = createOramaTripleStore();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(
     new CompromiseService(),
@@ -191,7 +191,7 @@ Deno.test("EntityLinker - integration with real services", async () => {
   // Create real services for integration testing
   const store = createOramaTripleStore();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
   const ner = new CompromiseService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
@@ -234,7 +234,7 @@ Deno.test("EntityLinker - handles empty text", async () => {
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -247,7 +247,7 @@ Deno.test("EntityLinker - handles entities with special characters", async () =>
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -278,7 +278,7 @@ Deno.test("EntityLinker - handles entities with overlapping text", async () => {
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -309,7 +309,7 @@ Deno.test("EntityLinker - preserves entity offset information", async () => {
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -331,7 +331,7 @@ Deno.test("EntityLinker - preserves entity offset information", async () => {
 Deno.test("EntityLinker - handles concurrent entity linking", async () => {
   const store = createOramaTripleStore();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(
     new CompromiseService(),
@@ -386,7 +386,7 @@ Deno.test("EntityLinker - handles multiple search results and disambiguation", a
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 
@@ -429,7 +429,7 @@ Deno.test("EntityLinker - handles case sensitivity", async () => {
   const store = createOramaTripleStore();
   const ner = new CompromiseService();
   const search = new OramaSearchService(store);
-  const disambiguation = new DefaultDisambiguationService();
+  const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(ner, search, disambiguation);
 

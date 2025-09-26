@@ -1,17 +1,17 @@
 /**
- * Replaces placeholder IDs in Turtle content with generated IDs.
+ * Replaces placeholder IDs in Turtle content with provided IDs.
  *
  * This function finds all placeholder IDs in the format 'PLACEHOLDER_ENTITY_N'
- * and replaces them with unique generated IDs.
+ * and replaces them with the provided mapping.
  *
  * @param turtleContent - The Turtle content containing placeholder IDs
- * @param baseUrl - The base URL for generating IDs (defaults to fartlabs.org)
- * @returns Promise<string> - The Turtle content with placeholder IDs replaced
+ * @param placeholderMapping - Map from placeholder IDs to final IDs
+ * @returns string - The Turtle content with placeholder IDs replaced
  */
-export async function replacePlaceholderIds(
+export function replacePlaceholderIds(
   turtleContent: string,
-  baseUrl: string = "https://fartlabs.org/.well-known/genid",
-): Promise<string> {
+  placeholderMapping: Map<string, string>,
+): string {
   // Find all placeholder IDs in the format PLACEHOLDER_ENTITY_N
   const placeholderRegex = /PLACEHOLDER_ENTITY_\d+/g;
   const placeholders = turtleContent.match(placeholderRegex);
@@ -21,31 +21,13 @@ export async function replacePlaceholderIds(
     return turtleContent;
   }
 
-  // Get unique placeholders (in case of duplicates)
-  const uniquePlaceholders = [...new Set(placeholders)];
-
-  // Generate IDs for each unique placeholder
-  const replacements = new Map<string, string>();
-
-  for (const placeholder of uniquePlaceholders) {
-    try {
-      // Generate a unique ID for this placeholder
-      const generatedId = `${baseUrl}/${crypto.randomUUID()}`;
-      replacements.set(placeholder, generatedId);
-    } catch (error) {
-      console.warn(
-        `Failed to generate ID for placeholder ${placeholder}:`,
-        error,
-      );
-      // Keep the original placeholder if generation fails
-      replacements.set(placeholder, placeholder);
-    }
-  }
-
-  // Replace all placeholders with generated IDs
+  // Replace all placeholders with mapped IDs
   let result = turtleContent;
-  for (const [placeholder, generatedId] of replacements) {
-    result = result.replace(new RegExp(placeholder, "g"), generatedId);
+  for (const placeholder of placeholders) {
+    const finalId = placeholderMapping.get(placeholder);
+    if (finalId) {
+      result = result.replace(new RegExp(placeholder, "g"), finalId);
+    }
   }
 
   return result;
@@ -61,14 +43,4 @@ export function extractPlaceholderIds(turtleContent: string): string[] {
   const placeholderRegex = /PLACEHOLDER_ENTITY_\d+/g;
   const placeholders = turtleContent.match(placeholderRegex);
   return placeholders ? [...new Set(placeholders)] : [];
-}
-
-/**
- * Checks if Turtle content contains placeholder IDs.
- *
- * @param turtleContent - The Turtle content to check
- * @returns boolean - True if placeholders are found, false otherwise
- */
-export function hasPlaceholderIds(turtleContent: string): boolean {
-  return extractPlaceholderIds(turtleContent).length > 0;
 }
