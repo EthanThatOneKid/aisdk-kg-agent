@@ -3,7 +3,7 @@ import type {
   SearchRequest,
   SearchResponse,
   SearchService,
-} from "agents/linker/search/service.ts";
+} from "agents/linker/search/search.ts";
 import type { OramaTripleStore } from "./triple-store.ts";
 
 /**

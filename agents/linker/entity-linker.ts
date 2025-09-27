@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { GeneratedTurtleVariable } from "agents/turtle/schema.ts";
 import { generatedTurtleVariableSchema } from "agents/turtle/schema.ts";
-import type { SearchService } from "./search/service.ts";
 import type { Disambiguator } from "./disambiguator/disambiguator.ts";
+import type { SearchService } from "./search/search.ts";
 
 /**
  * LinkedEntity is a link between an entity and an associated record from the knowledge graph.

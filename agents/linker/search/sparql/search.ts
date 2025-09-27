@@ -4,7 +4,7 @@ import type {
   SearchRequest,
   SearchResponse,
   SearchService,
-} from "agents/linker/search/service.ts";
+} from "agents/linker/search/search.ts";
 
 // TODO: Implement <https://www.npmjs.com/package/@comunica/query-sparql-reasoning>.
 

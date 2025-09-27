@@ -1,5 +1,5 @@
 import type { Disambiguator } from "agents/linker/disambiguator/disambiguator.ts";
-import type { SearchResponse } from "agents/linker/search/service.ts";
+import type { SearchResponse } from "agents/linker/search/search.ts";
 
 /**
  * GreedyDisambiguator resolves the candidate with the highest score.

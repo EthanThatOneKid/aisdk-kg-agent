@@ -1,6 +1,6 @@
 import { promptSelect } from "@std/cli/unstable-prompt-select";
 import type { Disambiguator } from "agents/linker/disambiguator/disambiguator.ts";
-import type { SearchResponse } from "agents/linker/search/service.ts";
+import type { SearchResponse } from "agents/linker/search/search.ts";
 
 /**
  * PromptDisambiguationService prompts the user to disambiguate the candidate.

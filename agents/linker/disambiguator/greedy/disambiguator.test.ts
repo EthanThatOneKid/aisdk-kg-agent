@@ -1,9 +1,6 @@
 import { assertEquals, assertExists, assertThrows } from "@std/assert";
 import { GreedyDisambiguator } from "./disambiguator.ts";
-import type {
-  SearchHit,
-  SearchResponse,
-} from "agents/linker/search/service.ts";
+import type { SearchHit, SearchResponse } from "agents/linker/search/search.ts";
 
 Deno.test("GreedyDisambiguator - constructor", () => {
   const service = new GreedyDisambiguator();

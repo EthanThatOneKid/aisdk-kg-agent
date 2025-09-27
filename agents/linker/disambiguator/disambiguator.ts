@@ -1,4 +1,4 @@
-import type { SearchResponse } from "agents/linker/search/service.ts";
+import type { SearchResponse } from "agents/linker/search/search.ts";
 
 /**
  * Disambiguator resolves the most likely subject from the search results.
