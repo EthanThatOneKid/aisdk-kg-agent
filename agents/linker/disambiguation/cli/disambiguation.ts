@@ -6,26 +6,43 @@ import type { SearchResponse } from "agents/linker/search/service.ts";
  * PromptDisambiguationService prompts the user to disambiguate the candidate.
  */
 export class PromptDisambiguationService implements DisambiguationService {
-  // TODO: Add auto-confirm suggestions.
-  public constructor(
-    private readonly message = (text: string) => text,
-  ) {}
-
-  // TODO: Allow user to enter custom ID or generate a random one.
+  public constructor(private readonly random: () => string) {}
 
   public disambiguate(data: SearchResponse): Promise<string> {
+    if (data.hits.length === 0) {
+      return this.customize(data);
+    }
+
     const selected = promptSelect(
-      this.message(data.text),
+      `'${data.text}' - Select the associated entity`,
       data.hits.map((hit, index) => ({
-        label: `${hit.subject} (score: ${hit.score.toFixed(2)})`,
+        label: `${hit.score.toFixed(2)} - <${hit.subject}>`,
         value: index,
       })),
-      { clear: true },
     );
     if (selected === null) {
-      throw new Error("User cancelled disambiguation selection");
+      return this.customize(data);
     }
 
     return Promise.resolve(data.hits[selected.value].subject);
+  }
+
+  /**
+   * customize prompts the user to enter a custom ID or generate a random one.
+   */
+  public customize(data: SearchResponse): Promise<string> {
+    const id = prompt(
+      `'${data.text}' - Enter ID (leave blank to generate a random ID)`,
+    );
+    if (!id) {
+      return Promise.resolve(this.random());
+    }
+
+    if (!URL.canParse(id)) {
+      console.error("ID must be a valid IRI");
+      return this.customize(data);
+    }
+
+    return Promise.resolve(id);
   }
 }

@@ -1,7 +1,7 @@
 /**
  * turtleVariablePattern is the pattern for placeholder entity IDs.
  */
-const turtleVariablePattern = /\<PLACEHOLDER_ENTITY_\d+\>/g;
+const turtleVariablePattern = /\<(PLACEHOLDER_ENTITY_\d+)\>/g;
 
 /**
  * substituteVariables substitutes the placeholder IDs with the generated IDs.
@@ -12,10 +12,10 @@ export function substituteVariables(
 ): string {
   return turtle.replaceAll(
     turtleVariablePattern,
-    (placeholder) => {
-      const value = values.get(placeholder);
+    (match, id) => {
+      const value = values.get(id);
       if (value === undefined) {
-        throw new Error(`Variable ${placeholder} not found`);
+        throw new Error(`Variable ${match} not found`);
       }
 
       return `<${value}>`;

@@ -60,7 +60,12 @@ if (import.meta.main) {
 
     // Create services using the already created stores.
     const searchService = new OramaSearchService(orama);
-    const disambiguationService = new GreedyDisambiguationService();
+    const disambiguationService = new GreedyDisambiguationService(() =>
+      genid(crypto.randomUUID())
+    );
+    // const disambiguationService = new PromptDisambiguationService(() =>
+    //   genid(crypto.randomUUID())
+    // );
 
     // Create an interceptor to sync N3 store changes with Orama store.
     const oramaSyncInterceptor = new OramaSyncInterceptor(orama);

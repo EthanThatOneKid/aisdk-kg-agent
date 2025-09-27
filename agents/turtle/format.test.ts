@@ -8,7 +8,7 @@ Deno.test("substituteVariables: single placeholder replacement", () => {
 <PLACEHOLDER_ENTITY_1> rdf:type ex:Person .`;
 
   const variables = new Map([
-    ["<PLACEHOLDER_ENTITY_1>", "http://example.org/person1"],
+    ["PLACEHOLDER_ENTITY_1", "http://example.org/person1"],
   ]);
 
   const result = substituteVariables(turtle, variables);
@@ -30,8 +30,8 @@ Deno.test("substituteVariables: multiple placeholder replacements", () => {
 <PLACEHOLDER_ENTITY_2> rdf:type ex:Person .`;
 
   const variables = new Map([
-    ["<PLACEHOLDER_ENTITY_1>", "http://example.org/person1"],
-    ["<PLACEHOLDER_ENTITY_2>", "http://example.org/person2"],
+    ["PLACEHOLDER_ENTITY_1", "http://example.org/person1"],
+    ["PLACEHOLDER_ENTITY_2", "http://example.org/person2"],
   ]);
 
   const result = substituteVariables(turtle, variables);
@@ -53,7 +53,7 @@ Deno.test("substituteVariables: no placeholders", () => {
 ex:person1 rdf:type ex:Person .`;
 
   const variables = new Map([
-    ["<PLACEHOLDER_ENTITY_1>", "http://example.org/person1"],
+    ["PLACEHOLDER_ENTITY_1", "http://example.org/person1"],
   ]);
 
   const result = substituteVariables(turtle, variables);
@@ -89,7 +89,7 @@ Deno.test("substituteVariables: missing placeholder throws error", () => {
            ex:knows <PLACEHOLDER_ENTITY_2> .`;
 
   const variables = new Map([
-    ["<PLACEHOLDER_ENTITY_1>", "http://example.org/person1"],
+    ["PLACEHOLDER_ENTITY_1", "http://example.org/person1"],
     // Missing PLACEHOLDER_ENTITY_2
   ]);
 
@@ -113,7 +113,7 @@ Deno.test("substituteVariables: same placeholder used multiple times", () => {
            ex:knows <PLACEHOLDER_ENTITY_1> .`;
 
   const variables = new Map([
-    ["<PLACEHOLDER_ENTITY_1>", "http://example.org/person1"],
+    ["PLACEHOLDER_ENTITY_1", "http://example.org/person1"],
   ]);
 
   const result = substituteVariables(turtle, variables);
