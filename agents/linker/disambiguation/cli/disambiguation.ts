@@ -1,20 +1,19 @@
 import { promptSelect } from "@std/cli/unstable-prompt-select";
 import type { DisambiguationService } from "agents/linker/disambiguation/service.ts";
-import type {
-  SearchHit,
-  SearchResponse,
-} from "agents/linker/search/service.ts";
+import type { SearchResponse } from "agents/linker/search/service.ts";
 
 /**
  * PromptDisambiguationService prompts the user to disambiguate the candidate.
  */
 export class PromptDisambiguationService implements DisambiguationService {
   // TODO: Add auto-confirm suggestions.
-  constructor(
+  public constructor(
     private readonly message = (text: string) => text,
   ) {}
 
-  disambiguate(data: SearchResponse): Promise<SearchHit | null> {
+  // TODO: Allow user to enter custom ID or generate a random one.
+
+  public disambiguate(data: SearchResponse): Promise<string> {
     const selected = promptSelect(
       this.message(data.text),
       data.hits.map((hit, index) => ({
@@ -24,9 +23,9 @@ export class PromptDisambiguationService implements DisambiguationService {
       { clear: true },
     );
     if (selected === null) {
-      return Promise.resolve(null);
+      throw new Error("User cancelled disambiguation selection");
     }
 
-    return Promise.resolve(data.hits[selected.value]);
+    return Promise.resolve(data.hits[selected.value].subject);
   }
 }

@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assertEquals, assertExists, assertThrows } from "@std/assert";
 import { GreedyDisambiguationService } from "./disambiguation.ts";
 import type {
   SearchHit,
@@ -16,14 +16,17 @@ Deno.test("GreedyDisambiguationService - constructor", () => {
 Deno.test("GreedyDisambiguationService - disambiguate with empty hits", async () => {
   const service = new GreedyDisambiguationService();
 
-  // Test with empty hits array.
+  // Test with empty hits array - should throw an error.
   const searchResponse: SearchResponse = {
     text: "test search",
     hits: [],
   };
 
-  const result = await service.disambiguate(searchResponse);
-  assertEquals(result, null);
+  await assertThrows(
+    () => service.disambiguate(searchResponse),
+    Error,
+    "No search hits available for disambiguation",
+  );
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with single hit", async () => {
@@ -42,8 +45,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with single hit", async ()
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, 0.95);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with multiple hits", async () => {
@@ -72,8 +74,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with multiple hits", async
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, 0.95);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with zero scores", async () => {
@@ -98,8 +99,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with zero scores", async (
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, 0.0);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with negative scores", async () => {
@@ -124,8 +124,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with negative scores", asy
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, -0.5);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with very high scores", async () => {
@@ -150,8 +149,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with very high scores", as
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, 99.99);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with identical scores", async () => {
@@ -180,8 +178,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with identical scores", as
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, 0.85);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with mixed score types", async () => {
@@ -210,8 +207,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with mixed score types", a
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, 0.5);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with special characters in subjects", async () => {
@@ -240,8 +236,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with special characters in
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person#fragment");
-  assertEquals(result.score, 0.9);
+  assertEquals(result, "http://example.org/person#fragment");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with long subjects", async () => {
@@ -269,8 +264,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with long subjects", async
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, longSubject);
-  assertEquals(result.score, 0.95);
+  assertEquals(result, longSubject);
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with empty text", async () => {
@@ -291,8 +285,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with empty text", async ()
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, 0.5);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with whitespace text", async () => {
@@ -313,8 +306,7 @@ Deno.test("GreedyDisambiguationService - disambiguate with whitespace text", asy
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/person1");
-  assertEquals(result.score, 0.3);
+  assertEquals(result, "http://example.org/person1");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate with single element array", async () => {
@@ -335,14 +327,13 @@ Deno.test("GreedyDisambiguationService - disambiguate with single element array"
 
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
-  assertEquals(result.subject, "http://example.org/unique");
-  assertEquals(result.score, 0.42);
+  assertEquals(result, "http://example.org/unique");
 });
 
 Deno.test("GreedyDisambiguationService - disambiguate preserves original hit object", async () => {
   const service = new GreedyDisambiguationService();
 
-  // Test that the returned hit is the exact same object reference.
+  // Test that the returned subject is the exact same string.
   const searchHits: SearchHit[] = [
     {
       subject: "http://example.org/person1",
@@ -362,7 +353,7 @@ Deno.test("GreedyDisambiguationService - disambiguate preserves original hit obj
   const result = await service.disambiguate(searchResponse);
   assertExists(result);
 
-  // Verify it's the same object reference.
-  assertEquals(result === searchHits[0], true);
-  assertEquals(result === searchResponse.hits[0], true);
+  // Verify it's the same subject string.
+  assertEquals(result, searchHits[0].subject);
+  assertEquals(result, searchResponse.hits[0].subject);
 });

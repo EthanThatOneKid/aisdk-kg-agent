@@ -1,6 +1,6 @@
 import { default as nlp } from "compromise";
 import { default as pluginDates } from "compromise-dates";
-import type { NerEntity, NerService } from "agents/linker/ner/service.ts";
+import type { NerEntity, NerService } from "./service.ts";
 
 nlp.extend(pluginDates);
 
