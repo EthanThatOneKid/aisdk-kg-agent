@@ -1,11 +1,13 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import { DataFactory } from "n3";
 import { CustomN3Store } from "n3store/custom-n3store.ts";
 import {
   createDenoKvPersistedN3Store,
   getN3StoreFromKv,
+  getTurtleFromKv,
   removeN3StoreFromKv,
   setN3StoreToKv,
+  setTurtleToKv,
 } from "./kv.ts";
 
 Deno.test("createDenoKvPersistedN3Store - basic functionality", async () => {
@@ -232,6 +234,102 @@ Deno.test("kv-toolbox blob integration - large data handling", async () => {
       );
       assertExists(loadedStore!.has(expectedQuad));
     }
+  } finally {
+    await removeN3StoreFromKv(kv, key);
+    kv.close();
+  }
+});
+
+Deno.test("getTurtleFromKv - gets turtle text directly", async () => {
+  const kv = await Deno.openKv(":memory:");
+  const key = ["test", "turtle", "text"];
+
+  try {
+    // Create a store with some test data.
+    const store = new CustomN3Store();
+    const quad = DataFactory.quad(
+      DataFactory.namedNode("http://example.org/person1"),
+      DataFactory.namedNode("http://schema.org/name"),
+      DataFactory.literal("Alice"),
+      DataFactory.defaultGraph(),
+    );
+    store.addQuad(quad);
+
+    // Store the data using setN3StoreToKv.
+    await setN3StoreToKv(kv, key, store);
+
+    // Get turtle text directly using the new function.
+    const turtleText = await getTurtleFromKv(kv, key);
+    assertExists(turtleText);
+    assert(turtleText!.includes("http://example.org/person1"));
+    assert(turtleText!.includes("http://schema.org/name"));
+    assert(turtleText!.includes("Alice"));
+
+    // Test with non-existent key.
+    const nonExistentText = await getTurtleFromKv(kv, ["non", "existent"]);
+    assertEquals(nonExistentText, null);
+  } finally {
+    await removeN3StoreFromKv(kv, key);
+    kv.close();
+  }
+});
+
+Deno.test("setTurtleToKv - stores turtle text directly", async () => {
+  const kv = await Deno.openKv(":memory:");
+  const key = ["test", "turtle", "set"];
+
+  try {
+    // Create turtle text data
+    const turtleText = `@prefix ex: <http://example.org/> .
+@prefix schema: <http://schema.org/> .
+
+ex:person1 a schema:Person ;
+  schema:name "Alice" ;
+  schema:age 30 .
+
+ex:person2 a schema:Person ;
+  schema:name "Bob" ;
+  schema:age 25 .`;
+
+    // Store turtle text directly using setTurtleToKv
+    const result = await setTurtleToKv(kv, key, turtleText);
+    assertExists(result);
+    assert(result.ok);
+
+    // Retrieve and verify the stored data
+    const retrievedText = await getTurtleFromKv(kv, key);
+    assertExists(retrievedText);
+    assertEquals(retrievedText, turtleText);
+
+    // Verify the text contains expected content
+    assert(retrievedText!.includes("ex:person1"));
+    assert(retrievedText!.includes("schema:name"));
+    assert(retrievedText!.includes("Alice"));
+    assert(retrievedText!.includes("Bob"));
+  } finally {
+    await removeN3StoreFromKv(kv, key);
+    kv.close();
+  }
+});
+
+Deno.test("setTurtleToKv and getTurtleFromKv - round trip with custom format", async () => {
+  const kv = await Deno.openKv(":memory:");
+  const key = ["test", "turtle", "format"];
+
+  try {
+    const turtleText = `@prefix ex: <http://example.org/> .
+ex:test a ex:TestClass .`;
+
+    // Store with custom format
+    await setTurtleToKv(kv, key, turtleText, {
+      format: "application/n-triples",
+      expireIn: 3600000, // 1 hour
+    });
+
+    // Retrieve and verify
+    const retrievedText = await getTurtleFromKv(kv, key);
+    assertExists(retrievedText);
+    assertEquals(retrievedText, turtleText);
   } finally {
     await removeN3StoreFromKv(kv, key);
     kv.close();

@@ -6,7 +6,9 @@
  * import {
  *   createDenoKvPersistedN3Store,
  *   setN3StoreToKv,
- *   getN3StoreFromKv
+ *   getN3StoreFromKv,
+ *   setTurtleToKv,
+ *   getTurtleFromKv
  * } from "n3store/persist/kv.ts";
  *
  * const kv = await Deno.openKv();
@@ -29,6 +31,16 @@
  * await setN3StoreToKv(kv, ["direct", "store"], store);
  *
  * const loadedStore = await getN3StoreFromKv(kv, ["direct", "store"]);
+ *
+ * // Method 3: Direct turtle text operations
+ * const turtleText = `@prefix ex: <http://example.org/> .
+ * ex:person1 ex:name "Alice" .`;
+ * await setTurtleToKv(kv, ["turtle", "data"], turtleText);
+ *
+ * const retrievedText = await getTurtleFromKv(kv, ["turtle", "data"]);
+ * if (retrievedText) {
+ *   console.log("Turtle data:", retrievedText);
+ * }
  * ```
  */
 
@@ -76,8 +88,23 @@ export async function createDenoKvPersistedN3Store(
 }
 
 /**
+ * setTurtleToKv sets turtle text data directly to Deno.Kv storage as a blob.
+ * This function stores raw turtle text using kv-toolbox's blob storage.
+ */
+export async function setTurtleToKv(
+  kv: Deno.Kv,
+  key: Deno.KvKey,
+  turtleText: string,
+  options?: Pick<KvN3StoreOptions, "expireIn" | "format">,
+): Promise<Deno.KvCommitResult> {
+  const format = options?.format || "text/turtle";
+  const blob = new Blob([turtleText], { type: format });
+  return await setBlob(kv, key, blob, { expireIn: options?.expireIn });
+}
+
+/**
  * setN3StoreToKv sets a CustomN3Store directly to Deno.Kv storage as a blob.
- * This function exports the store as Turtle format and stores it using kv-toolbox's blob storage.
+ * This function exports the store as Turtle format and stores it using setTurtleToKv.
  */
 export async function setN3StoreToKv(
   kv: Deno.Kv,
@@ -86,9 +113,24 @@ export async function setN3StoreToKv(
   options?: Pick<KvN3StoreOptions, "expireIn" | "format">,
 ): Promise<Deno.KvCommitResult> {
   const data = await exportTurtle(store);
-  const format = options?.format || "text/turtle";
-  const blob = new Blob([data], { type: format });
-  return await setBlob(kv, key, blob, { expireIn: options?.expireIn });
+  return await setTurtleToKv(kv, key, data, options);
+}
+
+/**
+ * getTurtleFromKv gets turtle text data directly from Deno.Kv storage.
+ * This function retrieves blob data from the KV store and returns it as text.
+ * Returns null if the key does not exist.
+ */
+export async function getTurtleFromKv(
+  kv: Deno.Kv,
+  key: Deno.KvKey,
+  options?: Pick<KvN3StoreOptions, "consistency">,
+): Promise<string | null> {
+  const blob = await getAsBlob(kv, key, { consistency: options?.consistency });
+  if (blob !== null) {
+    return await blob.text();
+  }
+  return null;
 }
 
 /**
@@ -101,11 +143,10 @@ export async function getN3StoreFromKv(
   key: Deno.KvKey,
   options?: Pick<KvN3StoreOptions, "consistency">,
 ): Promise<CustomN3Store | null> {
-  const blob = await getAsBlob(kv, key, { consistency: options?.consistency });
-  if (blob !== null) {
+  const turtle = await getTurtleFromKv(kv, key, options);
+  if (turtle !== null) {
     const store = new CustomN3Store();
-    const turtleData = await blob.text();
-    insertTurtle(store, turtleData);
+    insertTurtle(store, turtle);
     return store;
   }
   return null;
