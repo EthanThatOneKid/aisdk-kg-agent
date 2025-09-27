@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { GeneratedTurtleVariable } from "agents/turtle/schema.ts";
 import { generatedTurtleVariableSchema } from "agents/turtle/schema.ts";
 import type { SearchService } from "./search/service.ts";
-import type { DisambiguationService } from "./disambiguation/service.ts";
+import type { Disambiguator } from "./disambiguator/disambiguator.ts";
 
 /**
  * LinkedEntity is a link between an entity and an associated record from the knowledge graph.
@@ -20,7 +20,7 @@ export const linkedEntitySchema = z.object({
 export class EntityLinker {
   public constructor(
     private readonly search: SearchService,
-    private readonly disambiguation: DisambiguationService,
+    private readonly disambiguation: Disambiguator,
   ) {}
 
   public async linkEntities(

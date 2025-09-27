@@ -1,8 +1,8 @@
 import { google } from "@ai-sdk/google";
 import { TurtleGenerator } from "agents/turtle/generator.ts";
 import { EntityLinker } from "agents/linker/entity-linker.ts";
-import { PromptDisambiguationService } from "agents/linker/disambiguation/cli/disambiguation.ts";
-import { GreedyDisambiguationService } from "agents/linker/disambiguation/greedy/disambiguation.ts";
+import { PromptDisambiguationService } from "agents/linker/disambiguator/cli/disambiguator.ts";
+import { GreedyDisambiguator } from "agents/linker/disambiguator/greedy/disambiguator.ts";
 import { OramaSearchService } from "agents/linker/search/orama/search.ts";
 import {
   createDenoPersistedOramaTripleStore,
@@ -64,7 +64,7 @@ if (import.meta.main) {
     // Create services using the already created stores.
     const searchService = new OramaSearchService(orama);
     const disambiguationService = config.fast
-      ? new GreedyDisambiguationService(() => genid(crypto.randomUUID()))
+      ? new GreedyDisambiguator(() => genid(crypto.randomUUID()))
       : new PromptDisambiguationService(() => genid(crypto.randomUUID()));
 
     // Create an interceptor to sync N3 store changes with Orama store.

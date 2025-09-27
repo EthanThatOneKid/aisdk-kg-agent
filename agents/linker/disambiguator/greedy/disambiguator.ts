@@ -1,10 +1,10 @@
-import type { DisambiguationService } from "agents/linker/disambiguation/service.ts";
+import type { Disambiguator } from "agents/linker/disambiguator/disambiguator.ts";
 import type { SearchResponse } from "agents/linker/search/service.ts";
 
 /**
- * GreedyDisambiguationService resolves the candidate with the highest score.
+ * GreedyDisambiguator resolves the candidate with the highest score.
  */
-export class GreedyDisambiguationService implements DisambiguationService {
+export class GreedyDisambiguator implements Disambiguator {
   public constructor(private readonly random?: () => string) {}
 
   public disambiguate(data: SearchResponse): Promise<string> {
