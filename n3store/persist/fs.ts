@@ -1,5 +1,5 @@
-import { CustomN3Store } from "./custom-n3store.ts";
-import { exportTurtle, insertTurtle } from "./turtle.ts";
+import { CustomN3Store } from "n3store/custom-n3store.ts";
+import { exportTurtle, insertTurtle } from "n3store/turtle.ts";
 
 export async function createDenoPersistedN3Store(filePath: string) {
   const n3Store = new CustomN3Store();

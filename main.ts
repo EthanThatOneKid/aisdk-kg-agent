@@ -10,7 +10,10 @@ import {
 } from "agents/linker/search/orama/persist.ts";
 import { OramaSyncInterceptor } from "n3store/interceptor/orama-sync-interceptor.ts";
 import { insertTurtle } from "n3store/turtle.ts";
-import { createDenoPersistedN3Store, removeN3Store } from "n3store/persist.ts";
+import {
+  createDenoPersistedN3Store,
+  removeN3Store,
+} from "n3store/persist/fs.ts";
 import shapes from "n3store/shacl/datashapes.org/schema.ttl" with {
   type: "text",
 };
