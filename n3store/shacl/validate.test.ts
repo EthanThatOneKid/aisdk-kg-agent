@@ -77,6 +77,42 @@ ex:john rdf:type ex:Person .
     typeof result === "string" && result.length > 0,
     "Error text should be a non-empty string",
   );
+
+  // Verify the actual error text contains expected SHACL validation information
+  // The result should be a structured JSON validation report
+  assert(result !== null, "Should return validation report for violations");
+
+  // Parse the JSON to verify structure
+  const report = JSON.parse(result);
+
+  assert(typeof report === "object", "Should be a JSON object");
+  assert(report.conforms === false, "Should indicate non-conformance");
+  assert(Array.isArray(report.results), "Should contain results array");
+  assert(report.results.length > 0, "Should contain validation results");
+
+  // Check the first validation result (raw shacl-engine object)
+  const validationResult = report.results[0];
+
+  // Check that the result has the expected structure
+  assert(validationResult.focusNode !== undefined, "Should have focusNode");
+  assert(validationResult.severity !== undefined, "Should have severity");
+  assert(
+    validationResult.constraintComponent !== undefined,
+    "Should have constraintComponent",
+  );
+
+  // Check that the severity is a Violation
+  assert(
+    validationResult.severity.value === "http://www.w3.org/ns/shacl#Violation",
+    "Should indicate violation severity",
+  );
+
+  // Check that the constraint component is MinCount
+  assert(
+    validationResult.constraintComponent.value ===
+      "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+    "Should be MinCount constraint component",
+  );
 });
 
 Deno.test("validateTurtle: malformed Turtle returns error", async () => {
@@ -88,6 +124,9 @@ Deno.test("validateTurtle: malformed Turtle returns error", async () => {
     typeof result === "string" && result.length > 0,
     "Error text should be a non-empty string",
   );
+
+  // Verify the actual error text for malformed Turtle syntax
+  assertEquals(result, "Expected entity but got eof on line 2.");
 });
 
 Deno.test("validateTurtle: malformed schema returns error", async () => {

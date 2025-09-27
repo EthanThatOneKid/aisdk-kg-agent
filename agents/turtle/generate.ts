@@ -47,7 +47,7 @@ export async function generateTurtle(
 
     context.push(
       { role: "assistant", content: JSON.stringify(result.object) },
-      { role: "user", content: `Error: ${errorText}` },
+      { role: "user", content: errorText },
     );
 
     attempts++;

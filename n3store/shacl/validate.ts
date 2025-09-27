@@ -1,6 +1,6 @@
 import * as n3 from "n3";
 import { Validator as SHACLValidator } from "shacl-engine";
-import { insertTurtle } from "../turtle.ts";
+import { insertTurtle } from "n3store/turtle.ts";
 
 /**
  * validateTurtle validates a knowledge graph based on a schema of SHACL
@@ -27,9 +27,16 @@ export async function validateTurtle(
     const validator = new SHACLValidator(shapes, { factory: n3.DataFactory });
     const report = await validator.validate({ dataset: data });
     const isValid = report.conforms;
-    return !isValid
-      ? await report.dataset.serialize({ format: "text/turtle" })
-      : null;
+
+    if (!isValid) {
+      // Return the SHACL validation report directly as JSON.
+      return JSON.stringify({
+        conforms: report.conforms,
+        results: report.results,
+      });
+    }
+
+    return null;
   } catch (error) {
     if (error instanceof Error) {
       return error.message;

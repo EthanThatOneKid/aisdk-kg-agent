@@ -1,4 +1,5 @@
 import { assertEquals, assertExists, assertRejects } from "@std/assert";
+import type { GeneratedTurtleVariable } from "agents/turtle/schema.ts";
 import { EntityLinker } from "./entity-linker.ts";
 import { GreedyDisambiguationService } from "./disambiguation/greedy/disambiguation.ts";
 import { OramaSearchService } from "./search/orama/search.ts";
@@ -6,7 +7,6 @@ import {
   createOramaTripleStore,
   insertTriple,
 } from "./search/orama/triple-store.ts";
-import type { GeneratedTurtleVariable } from "../turtle/schema.ts";
 
 Deno.test("EntityLinker - constructor", () => {
   const store = createOramaTripleStore();
