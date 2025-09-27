@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { QueryEngine } from "@comunica/query-sparql";
+import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
 import * as n3 from "n3";
 import { insertTurtle } from "n3store/turtle.ts";
 import { SparqlSearchService } from "./search.ts";

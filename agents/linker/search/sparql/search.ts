@@ -1,4 +1,4 @@
-import type { QueryEngine } from "@comunica/query-sparql";
+import type { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
 import type {
   SearchHit,
   SearchRequest,

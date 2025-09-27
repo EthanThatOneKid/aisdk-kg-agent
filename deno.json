@@ -7,10 +7,10 @@
     "outdated": "deno outdated --update --latest"
   },
   "imports": {
+    "@comunica/query-sparql-rdfjs-lite": "npm:@comunica/query-sparql-rdfjs-lite@^4.4.1",
     "agents/": "./agents/",
     "n3store/": "./n3store/",
     "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.17",
-    "@comunica/query-sparql": "npm:@comunica/query-sparql@^4.4.1",
     "@comunica/types": "npm:@comunica/types@^4.4.0",
     "@orama/orama": "npm:@orama/orama@^3.1.14",
     "@orama/plugin-data-persistence": "npm:@orama/plugin-data-persistence@^3.1.14",

@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
-import { QueryEngine } from "@comunica/query-sparql";
+import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
 import { DataFactory } from "n3";
 import { insertTurtle } from "./turtle.ts";
 import { CountInterceptor } from "./interceptor/count-interceptor.ts";

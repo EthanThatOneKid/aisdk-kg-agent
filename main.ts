@@ -1,7 +1,7 @@
 import { google } from "@ai-sdk/google";
 import { TurtleGenerator } from "agents/turtle/generator.ts";
 import { EntityLinker } from "agents/linker/entity-linker.ts";
-// import { PromptDisambiguationService } from "agents/linker/disambiguation/cli/disambiguation.ts";
+import { PromptDisambiguationService } from "agents/linker/disambiguation/cli/disambiguation.ts";
 import { GreedyDisambiguationService } from "agents/linker/disambiguation/greedy/disambiguation.ts";
 import { OramaSearchService } from "agents/linker/search/orama/search.ts";
 import {
@@ -17,7 +17,7 @@ import shapes from "n3store/shacl/datashapes.org/schema.ttl" with {
 
 const t = Date.now().toString();
 const config = {
-  fast: true,
+  fast: false,
   clean: true,
   verbose: true,
   oramaPath: `./results/${t}_orama.json`,
@@ -60,12 +60,9 @@ if (import.meta.main) {
 
     // Create services using the already created stores.
     const searchService = new OramaSearchService(orama);
-    const disambiguationService = new GreedyDisambiguationService(() =>
-      genid(crypto.randomUUID())
-    );
-    // const disambiguationService = new PromptDisambiguationService(() =>
-    //   genid(crypto.randomUUID())
-    // );
+    const disambiguationService = config.fast
+      ? new GreedyDisambiguationService(() => genid(crypto.randomUUID()))
+      : new PromptDisambiguationService(() => genid(crypto.randomUUID()));
 
     // Create an interceptor to sync N3 store changes with Orama store.
     const oramaSyncInterceptor = new OramaSyncInterceptor(orama);
@@ -88,7 +85,7 @@ if (import.meta.main) {
 
       // Step 1: Generate Turtle with placeholders (fast, no external dependencies)
       if (config.verbose) {
-        console.log("Generating Turtle with placeholders...");
+        console.log("Generating Turtle...");
       }
       const result = await generator.generate({
         model,
