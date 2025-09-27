@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { substituteVariables, trimFence } from "./format.ts";
 
 Deno.test("substituteVariables: single placeholder replacement", () => {
@@ -69,16 +69,11 @@ Deno.test("substituteVariables: empty variables map throws error", () => {
 
   const variables = new Map();
 
-  try {
-    substituteVariables(turtle, variables);
-    assertEquals(true, false, "Expected substituteVariables to throw an error");
-  } catch (error) {
-    assertEquals(error instanceof Error, true);
-    assertEquals(
-      (error as Error).message,
-      "Variable <PLACEHOLDER_ENTITY_1> not found",
-    );
-  }
+  assertThrows(
+    () => substituteVariables(turtle, variables),
+    Error,
+    "Variable <PLACEHOLDER_ENTITY_1> not found",
+  );
 });
 
 Deno.test("substituteVariables: missing placeholder throws error", () => {
@@ -90,19 +85,14 @@ Deno.test("substituteVariables: missing placeholder throws error", () => {
 
   const variables = new Map([
     ["PLACEHOLDER_ENTITY_1", "http://example.org/person1"],
-    // Missing PLACEHOLDER_ENTITY_2
+    // Missing PLACEHOLDER_ENTITY_2 to test error handling for undefined variables.
   ]);
 
-  try {
-    substituteVariables(turtle, variables);
-    assertEquals(true, false, "Expected substituteVariables to throw an error");
-  } catch (error) {
-    assertEquals(error instanceof Error, true);
-    assertEquals(
-      (error as Error).message,
-      "Variable <PLACEHOLDER_ENTITY_2> not found",
-    );
-  }
+  assertThrows(
+    () => substituteVariables(turtle, variables),
+    Error,
+    "Variable <PLACEHOLDER_ENTITY_2> not found",
+  );
 });
 
 Deno.test("substituteVariables: same placeholder used multiple times", () => {
@@ -255,7 +245,7 @@ ex:person1 rdf:type ex:Person .`;
 
   const result = trimFence(text);
 
-  // Should only remove the opening fence
+  // Verify only the opening fence is removed, preserving content.
   const expected = `@prefix ex: <http://example.org/> .
 ex:person1 rdf:type ex:Person .`;
 
@@ -269,7 +259,7 @@ ex:person1 rdf:type ex:Person .
 
   const result = trimFence(text);
 
-  // Should only remove the closing fence
+  // Verify only the closing fence is removed, preserving content.
   const expected = `@prefix ex: <http://example.org/> .
 ex:person1 rdf:type ex:Person .`;
 

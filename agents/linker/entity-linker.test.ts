@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assertEquals, assertExists, assertRejects } from "@std/assert";
 import { EntityLinker } from "./entity-linker.ts";
 import { GreedyDisambiguationService } from "./disambiguation/greedy/disambiguation.ts";
 import { OramaSearchService } from "./search/orama/search.ts";
@@ -28,7 +28,7 @@ Deno.test("EntityLinker - linkEntities with no entities", async () => {
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Test with empty entities array
+  // Verify empty entities array returns empty results without errors.
   const result = await linker.linkEntities([]);
 
   assertEquals(result.length, 0);
@@ -42,7 +42,7 @@ Deno.test("EntityLinker - linkEntities with single entity, no search results", a
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Test with an entity that won't be found in empty store
+  // Test error handling when entity cannot be found in empty knowledge graph.
   const entities: GeneratedTurtleVariable[] = [
     {
       id: "PLACEHOLDER_ENTITY_1",
@@ -51,18 +51,12 @@ Deno.test("EntityLinker - linkEntities with single entity, no search results", a
       text: "Alice",
     },
   ];
-  // Should throw an error when no search results are available
-  let errorThrown = false;
-  try {
-    await linker.linkEntities(entities);
-  } catch (error) {
-    errorThrown = true;
-    assertEquals(
-      (error as Error).message,
-      "No search hits available for disambiguation",
-    );
-  }
-  assertEquals(errorThrown, true);
+  // Verify proper error handling when no search results are available.
+  await assertRejects(
+    async () => await linker.linkEntities(entities),
+    Error,
+    "No search hits available for disambiguation",
+  );
 });
 
 Deno.test("EntityLinker - linkEntities with single entity, with search results", async () => {
@@ -72,7 +66,7 @@ Deno.test("EntityLinker - linkEntities with single entity, with search results",
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert test data
+  // Insert test data to verify entity linking works with known entities.
   await insertTriple(store, {
     subject: "http://example.org/person1",
     predicate: "http://schema.org/name",
@@ -89,13 +83,13 @@ Deno.test("EntityLinker - linkEntities with single entity, with search results",
   ];
   const result = await linker.linkEntities(entities);
 
-  // Should have one entity
+  // Verify exactly one entity is processed correctly.
   assertEquals(result.length, 1);
 
-  // Should have at least one linked entity
+  // Verify entity linking produces at least one successful result.
   assertEquals(result.length > 0, true);
 
-  // Verify the structure
+  // Verify the linked entity has the expected structure and properties.
   result.forEach((linkedEntity) => {
     assertExists(linkedEntity.entity);
     assertExists(linkedEntity.entity.text);
@@ -114,7 +108,7 @@ Deno.test("EntityLinker - linkEntities with multiple entities", async () => {
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert test data for multiple entities
+  // Insert test data to verify entity linking works with known entities. for multiple entities to verify batch processing.
   await insertTriple(store, {
     subject: "http://example.org/person1",
     predicate: "http://schema.org/name",
@@ -143,13 +137,13 @@ Deno.test("EntityLinker - linkEntities with multiple entities", async () => {
   ];
   const result = await linker.linkEntities(entities);
 
-  // Should have two entities
+  // Verify both entities are processed in the batch operation.
   assertEquals(result.length, 2);
 
-  // Should have some linked entities
+  // Verify batch entity linking produces successful results.
   assertEquals(result.length > 0, true);
 
-  // Verify we found both Alice and Central Park
+  // Verify we successfully linked both Alice and Central Park entities.
   const entityTexts = result.map((le) => le.entity.text);
   const hasAlice = entityTexts.some((text) => text.includes("Alice"));
   const hasCentralPark = entityTexts.some((text) =>
@@ -166,7 +160,7 @@ Deno.test("EntityLinker - linkEntity with no search results", async () => {
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Create a mock entity that won't be found
+  // Create a fake entity that won't be found to test error handling.
   const entity: GeneratedTurtleVariable = {
     id: "PLACEHOLDER_ENTITY_1",
     type: "schema:Person",
@@ -174,18 +168,12 @@ Deno.test("EntityLinker - linkEntity with no search results", async () => {
     text: "UnknownEntity12345",
   };
 
-  // Should throw an error when no search results are available
-  let errorThrown = false;
-  try {
-    await linker.linkEntity(entity);
-  } catch (error) {
-    errorThrown = true;
-    assertEquals(
-      (error as Error).message,
-      "No search hits available for disambiguation",
-    );
-  }
-  assertEquals(errorThrown, true);
+  // Verify proper error handling when no search results are available.
+  await assertRejects(
+    async () => await linker.linkEntity(entity),
+    Error,
+    "No search hits available for disambiguation",
+  );
 });
 
 Deno.test("EntityLinker - linkEntity with search results", async () => {
@@ -195,14 +183,14 @@ Deno.test("EntityLinker - linkEntity with search results", async () => {
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert test data
+  // Insert test data to verify entity linking works with known entities.
   await insertTriple(store, {
     subject: "http://example.org/person1",
     predicate: "http://schema.org/name",
     object: "Alice",
   });
 
-  // Create an entity that should match
+  // Create an entity that should match our test data for successful linking.
   const entity: GeneratedTurtleVariable = {
     id: "PLACEHOLDER_ENTITY_1",
     type: "schema:Person",
@@ -218,14 +206,14 @@ Deno.test("EntityLinker - linkEntity with search results", async () => {
 });
 
 Deno.test("EntityLinker - integration with real services", async () => {
-  // Create real services for integration testing
+  // Create real services for integration testing to verify end-to-end functionality.
   const store = createOramaTripleStore();
   const search = new OramaSearchService(store);
   const disambiguation = new GreedyDisambiguationService();
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert some test data
+  // Insert some test data to verify integration with real services.
   await insertTriple(store, {
     subject: "http://example.org/person1",
     predicate: "http://schema.org/name",
@@ -238,7 +226,7 @@ Deno.test("EntityLinker - integration with real services", async () => {
     object: "Central Park",
   });
 
-  // Test with entities that should match our data
+  // Test with entities that should match our data to verify successful linking.
   const entities: GeneratedTurtleVariable[] = [
     {
       id: "PLACEHOLDER_ENTITY_1",
@@ -255,13 +243,13 @@ Deno.test("EntityLinker - integration with real services", async () => {
   ];
   const result = await linker.linkEntities(entities);
 
-  // Should have two entities
+  // Verify both entities are processed in the batch operation.
   assertEquals(result.length, 2);
 
   // Check that we have some linked entities
   assertEquals(result.length > 0, true);
 
-  // Verify the structure of linked entities
+  // Verify the linked entity has the expected structure and properties. of linked entities
   result.forEach((linkedEntity) => {
     assertExists(linkedEntity.entity);
     assertExists(linkedEntity.entity.text);
@@ -292,7 +280,7 @@ Deno.test("EntityLinker - handles entities with special characters", async () =>
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert test data with special characters
+  // Insert test data to verify entity linking works with known entities. with special characters
   await insertTriple(store, {
     subject: "http://example.org/person1",
     predicate: "http://schema.org/name",
@@ -321,10 +309,10 @@ Deno.test("EntityLinker - handles entities with special characters", async () =>
   ];
   const result = await linker.linkEntities(entities);
 
-  // Should have two entities
+  // Verify both entities are processed in the batch operation.
   assertEquals(result.length, 2);
 
-  // Should have some linked entities
+  // Verify batch entity linking produces successful results.
   assertEquals(result.length > 0, true);
 });
 
@@ -335,7 +323,7 @@ Deno.test("EntityLinker - handles entities with overlapping text", async () => {
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert test data
+  // Insert test data to verify entity linking works with known entities.
   await insertTriple(store, {
     subject: "http://example.org/city1",
     predicate: "http://schema.org/name",
@@ -358,10 +346,10 @@ Deno.test("EntityLinker - handles entities with overlapping text", async () => {
   ];
   const result = await linker.linkEntities(entities);
 
-  // Should have one entity
+  // Verify exactly one entity is processed correctly.
   assertEquals(result.length, 1);
 
-  // Should have some linked entities
+  // Verify batch entity linking produces successful results.
   assertEquals(result.length > 0, true);
 });
 
@@ -372,7 +360,7 @@ Deno.test("EntityLinker - preserves entity information", async () => {
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert test data
+  // Insert test data to verify entity linking works with known entities.
   await insertTriple(store, {
     subject: "http://example.org/person1",
     predicate: "http://schema.org/name",
@@ -400,7 +388,7 @@ Deno.test("EntityLinker - preserves entity information", async () => {
   ];
   const result = await linker.linkEntities(entities);
 
-  // Should have two entities
+  // Verify both entities are processed in the batch operation.
   assertEquals(result.length, 2);
 
   // Verify entity information is preserved
@@ -421,7 +409,7 @@ Deno.test("EntityLinker - handles concurrent entity linking", async () => {
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert test data
+  // Insert test data to verify entity linking works with known entities.
   await insertTriple(store, {
     subject: "http://example.org/1",
     predicate: "http://schema.org/name",
@@ -506,10 +494,10 @@ Deno.test("EntityLinker - handles multiple search results and disambiguation", a
   ];
   const result = await linker.linkEntities(entities);
 
-  // Should have one entity
+  // Verify exactly one entity is processed correctly.
   assertEquals(result.length, 1);
 
-  // Should have some linked entities
+  // Verify batch entity linking produces successful results.
   assertEquals(result.length > 0, true);
 
   // Verify disambiguation worked (should return the first/highest scoring result)
@@ -526,7 +514,7 @@ Deno.test("EntityLinker - handles case sensitivity", async () => {
 
   const linker = new EntityLinker(search, disambiguation);
 
-  // Insert test data with specific case
+  // Insert test data to verify entity linking works with known entities. with specific case
   await insertTriple(store, {
     subject: "http://example.org/person1",
     predicate: "http://schema.org/name",

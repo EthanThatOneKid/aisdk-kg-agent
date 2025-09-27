@@ -1088,7 +1088,7 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
   await t.step("Constructor with no interceptors", () => {
     const store = new CustomN3Store();
     assertEquals(store.size, 0);
-    // Test that interceptors array is empty
+    // Verify interceptor cleanup works correctly to prevent memory leaks.
     const quad = DataFactory.quad(
       DataFactory.namedNode("http://example.org/test"),
       DataFactory.namedNode("http://example.org/predicate"),
@@ -1144,7 +1144,7 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
     assertEquals(result1, true);
     assertEquals(countInterceptor.added, 1);
 
-    // Try to add the same quad again (should fail)
+    // Attempt to add duplicate quad to verify N3 store prevents duplicates.
     const result2 = store.addQuad(quad);
     assertEquals(result2, false);
     assertEquals(countInterceptor.added, 1); // Should not increment
@@ -1184,7 +1184,7 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Try to remove a quad that doesn't exist
+    // Attempt to remove non-existent quad to verify graceful error handling.
     const result = store.removeQuad(quad);
     assertEquals(result, false);
     assertEquals(countInterceptor.added, 0);
@@ -1201,7 +1201,7 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Should not throw any errors
+    // Verify no errors are thrown during normal interceptor operations.
     store.addQuad(quad);
     assertEquals(store.size, 1);
   });
@@ -1231,7 +1231,7 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Should not throw, but should log error
+    // Verify interceptor errors are logged but don't break store operations.
     store.addQuad(quad);
     assertEquals(store.size, 1);
     assertEquals(errorInterceptor.getErrorCount(), 1);
@@ -1307,17 +1307,17 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Initially no interceptors
+    // Start with no interceptors to test dynamic interceptor management.
     store.addQuad(quad);
     assertEquals(store.size, 1);
 
-    // Add interceptor
+    // Add interceptor to verify dynamic interceptor registration works.
     store.addInterceptor(countInterceptor);
     store.addQuad(quad); // Add duplicate (should fail but trigger interceptor).
     assertEquals(countInterceptor.added, 0); // addQuad failed, so no interceptor call.
     assertEquals(store.size, 1);
 
-    // Add a new quad to trigger interceptor
+    // Add a new quad to trigger interceptor and verify it's called correctly.
     const quad2 = DataFactory.quad(
       DataFactory.namedNode("http://example.org/test2"),
       DataFactory.namedNode("http://example.org/predicate"),
@@ -1339,11 +1339,11 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Initially interceptor is active
+    // Verify interceptor is initially active and functioning.
     store.addQuad(quad);
     assertEquals(countInterceptor.added, 1);
 
-    // Remove interceptor
+    // Remove interceptor to test dynamic interceptor removal.
     store.removeInterceptor(countInterceptor);
     const quad2 = DataFactory.quad(
       DataFactory.namedNode("http://example.org/test2"),
@@ -1367,7 +1367,7 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Try to remove interceptor that's not in the array
+    // Attempt to remove non-existent interceptor to verify graceful handling.
     store.removeInterceptor(countInterceptor2);
     store.addQuad(quad);
     assertEquals(countInterceptor1.added, 1);
@@ -1652,7 +1652,7 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
 
     const quads = Array.from(store);
     assertEquals(quads.length, 2);
-    // Order may vary, so check that both quads are present
+    // Verify both quads are present regardless of iteration order.
     const quadIds = quads.map((q) => q.subject.value);
     assertEquals(quadIds.includes("http://example.org/test1"), true);
     assertEquals(quadIds.includes("http://example.org/test2"), true);
