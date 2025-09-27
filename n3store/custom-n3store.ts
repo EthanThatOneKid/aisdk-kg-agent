@@ -1,7 +1,6 @@
 import { Store } from "n3";
 import type { DatasetCore, Quad, Term } from "@rdfjs/types";
 import type { QuadInterceptor } from "./interceptor/interceptor.ts";
-import { exportTurtle, insertTurtle } from "agents/turtle/turtle.ts";
 
 export class CustomN3Store extends Store {
   public constructor(private interceptors: QuadInterceptor[] = []) {
@@ -93,32 +92,11 @@ export class CustomN3Store extends Store {
     for (const quad of super.match(subject, predicate, object, graph)) {
       dataset.add(quad);
     }
+
     return dataset;
   }
 
   public [Symbol.iterator](): IterableIterator<Quad> {
     return super[Symbol.iterator]();
   }
-}
-
-export async function createManagedN3Store(filePath: string) {
-  const n3Store = new CustomN3Store();
-  try {
-    const data = await Deno.readTextFile(filePath);
-    insertTurtle(n3Store, data);
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
-      console.log("No existing db.ttl found, starting with fresh data");
-    } else {
-      throw error;
-    }
-  }
-
-  return {
-    n3Store,
-    persist: async () => {
-      const data = await exportTurtle(n3Store);
-      await Deno.writeTextFile(filePath, data);
-    },
-  };
 }

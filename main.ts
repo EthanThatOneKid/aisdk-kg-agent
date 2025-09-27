@@ -1,11 +1,11 @@
 import { google } from "@ai-sdk/google";
-import { generateTurtle } from "agents/turtle/generate.ts";
+import { generateTurtle } from "agents/turtle/generate-legacy.ts";
 import { EntityLinker } from "agents/linker/entity-linker.ts";
 import { CompromiseService } from "agents/linker/ner/compromise/ner.ts";
 import { PromptDisambiguationService } from "agents/linker/disambiguation/cli/disambiguation.ts";
 import { OramaSearchService } from "agents/linker/search/orama/search.ts";
 import { createDenoPersistedOramaTripleStore } from "agents/linker/search/orama/persist.ts";
-import { insertTurtle } from "agents/turtle/turtle.ts";
+import { insertTurtle } from "agents/turtle/generate.ts";
 import {
   createPlaceholderMapping,
   replacePlaceholderIds,
@@ -13,7 +13,7 @@ import {
 import shaclShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
   type: "text",
 };
-import { createManagedN3Store } from "./n3store/custom-n3store.ts";
+import { createPersistedN3Store } from "./n3store/custom-n3store.ts";
 import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
 
 const config = {
@@ -63,7 +63,7 @@ if (import.meta.main) {
     const nerService = new CompromiseService();
 
     // Create a managed N3Store for SPARQL queries.
-    const { n3Store, persist: persistN3Store } = await createManagedN3Store(
+    const { n3Store, persist: persistN3Store } = await createPersistedN3Store(
       config.n3StorePath,
     );
 
