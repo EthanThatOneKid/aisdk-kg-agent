@@ -13,6 +13,44 @@ punctuation.
 ### ✅ Good Examples
 
 ```typescript
+// Calculate total price with tax, using the standard business rule that
+// shipping is added after tax calculation for compliance with tax regulations.
+function calculateTotal(basePrice: number, taxRate: number): number {
+  const priceWithTax = basePrice * (1 + taxRate);
+  return priceWithTax + SHIPPING_COST;
+}
+```
+
+```typescript
+// Track quad additions for real-time analytics dashboard updates.
+// This listener ensures the UI reflects changes immediately without polling.
+store.addEventListener(SyncStoreEvent.ADD_QUAD, (event: Event) => {
+  const customEvent = event as CustomEvent;
+  const quad = customEvent.detail[0] as Quad;
+  updateSubjectCounts([quad], 1);
+});
+```
+
+```typescript
+// Use occurrence-based scoring to prioritize entities that appear more
+// frequently in the knowledge graph, improving search relevance.
+const sparqlQuery = `
+  SELECT ?subject (COUNT(?object) AS ?frequency) WHERE {
+    ?subject ?predicate ?object .
+    FILTER(isLiteral(?object) && datatype(?object) = xsd:string)
+    FILTER(CONTAINS(LCASE(?object), LCASE("${
+  request.text.replace(/"/g, '\\"')
+}")))
+  }
+  GROUP BY ?subject
+  ORDER BY DESC(?frequency)
+  LIMIT 10
+`;
+```
+
+### ❌ Bad Examples
+
+```typescript
 // This function calculates the total price including tax.
 // The tax rate is applied to the base price before adding shipping costs.
 function calculateTotal(basePrice: number, taxRate: number): number {
@@ -33,27 +71,17 @@ store.addEventListener(SyncStoreEvent.ADD_QUAD, (event: Event) => {
 });
 ```
 
-### ❌ Bad Examples
-
 ```typescript
-// calculates total price
-// tax rate applied
-function calculateTotal(basePrice: number, taxRate: number): number {
-  // apply tax
-  const priceWithTax = basePrice * (1 + taxRate);
-
-  // add shipping
-  return priceWithTax + SHIPPING_COST;
+// Get the entity value from the binding.
+const entity = binding.get("entity")?.value;
+// Get the count value from the binding.
+const count = binding.get("count")?.value;
+// Check if both values exist.
+if (entity && count) {
+  // Convert count to number and use as score.
+  const score = parseInt(count, 10);
+  hits.push({ subject: entity, score });
 }
-```
-
-```typescript
-// listen to ADD_QUAD events
-store.addEventListener(SyncStoreEvent.ADD_QUAD, (event: Event) => {
-  const customEvent = event as CustomEvent;
-  const quad = customEvent.detail[0] as Quad;
-  updateSubjectCounts([quad], 1);
-});
 ```
 
 ## Guidelines
@@ -63,9 +91,11 @@ store.addEventListener(SyncStoreEvent.ADD_QUAD, (event: Event) => {
 2. **Proper Punctuation**: End sentences with periods, question marks, or
    exclamation points as appropriate.
 3. **Capitalization**: Start sentences with capital letters.
-4. **Clarity**: Make comments clear and descriptive, not just brief notes.
-5. **Context**: Provide enough context for someone reading the code later to
-   understand the purpose.
+4. **Avoid the Obvious**: Don't comment on what the code obviously does. Focus
+   on the "why" and "how" rather than the "what".
+5. **Provide Context**: Include relevant additional context that isn't apparent
+   from reading the code alone.
+6. **Clarity**: Make comments clear and descriptive, not just brief notes.
 
 ## Exceptions
 
@@ -90,6 +120,8 @@ store.addEventListener(SyncStoreEvent.ADD_QUAD, (event: Event) => {
 - **Professionalism**: Proper punctuation shows attention to detail.
 - **Maintainability**: Clear comments help future developers understand the
   code.
+- **Context**: Comments provide valuable context that code alone cannot convey.
+- **Efficiency**: Avoid redundant comments that simply restate the obvious.
 - **Consistency**: Establishes a standard for all team members to follow.---
   description: globs: alwaysApply: true
 

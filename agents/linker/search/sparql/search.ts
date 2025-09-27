@@ -1,9 +1,12 @@
 import type { QueryEngine } from "@comunica/query-sparql";
 import type {
+  SearchHit,
   SearchRequest,
   SearchResponse,
   SearchService,
 } from "agents/linker/search/service.ts";
+
+// TODO: Implement <https://www.npmjs.com/package/@comunica/query-sparql-reasoning>.
 
 export class SparqlSearchService implements SearchService {
   constructor(
@@ -13,15 +16,17 @@ export class SparqlSearchService implements SearchService {
   ) {}
 
   async search(request: SearchRequest): Promise<SearchResponse> {
-    // Search for entities that match the input text using FILTER
+    // Search for entities that match the input text using FILTER and count occurrences.
     const sparqlQuery = `
-      SELECT DISTINCT ?entity ?object WHERE {
-        ?entity ?predicate ?object .
+      SELECT ?subject (COUNT(?object) AS ?frequency) WHERE {
+        ?subject ?predicate ?object .
         FILTER(isLiteral(?object) && datatype(?object) = xsd:string)
         FILTER(CONTAINS(LCASE(?object), LCASE("${
       request.text.replace(/"/g, '\\"')
     }")))
       }
+      GROUP BY ?subject
+      ORDER BY DESC(?frequency)
       LIMIT 10
     `;
 
@@ -30,15 +35,18 @@ export class SparqlSearchService implements SearchService {
       this.options,
     );
 
-    // Convert bindings to search hits
-    const hits: Array<{ subject: string; score: number }> = [];
+    // Convert bindings to search hits.
+    const hits: SearchHit[] = [];
 
     bindingsStream.on("data", (binding) => {
-      const entity = binding.get("entity")?.value;
-      if (entity) {
+      const subject = binding.get("subject")?.value;
+      const frequency = binding.get("frequency")?.value;
+      if (subject && frequency) {
+        // Convert frequency to number and use as score.
+        const score = parseInt(frequency, 10);
         hits.push({
-          subject: entity,
-          score: 1.0, // Simple scoring - could be improved with relevance scoring
+          subject,
+          score,
         });
       }
     });

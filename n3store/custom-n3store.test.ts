@@ -2,9 +2,9 @@ import { assertEquals } from "@std/assert";
 import { QueryEngine } from "@comunica/query-sparql";
 import { DataFactory } from "n3";
 import { insertTurtle } from "./turtle.ts";
-import { CustomN3Store } from "./custom-n3store.ts";
 import { CountInterceptor } from "./interceptor/count-interceptor.ts";
 import { ErrorInterceptor } from "./interceptor/error-interceptor.ts";
+import { CustomN3Store } from "./custom-n3store.ts";
 
 const queryEngine = new QueryEngine();
 
@@ -553,12 +553,12 @@ Deno.test("Direct method calls", async (t) => {
       const store = new CustomN3Store([countInterceptor]);
       const quad1 = DataFactory.quad(subject, predicate, object, graph);
 
-      // First add the quad, then remove it
+      // First add the quad, then remove it.
       store.addQuad(quad1);
       assertEquals(countInterceptor.added, 1);
       assertEquals(countInterceptor.removed, 0);
 
-      // Now remove it
+      // Now remove it.
       store.removeQuad(quad1);
       assertEquals(countInterceptor.added, 1);
       assertEquals(countInterceptor.removed, 1);
@@ -604,13 +604,13 @@ Deno.test("Error handling in interceptors", () => {
   const graph = DataFactory.defaultGraph();
   const quad = DataFactory.quad(subject, predicate, object, graph);
 
-  // Add a quad - should succeed despite error interceptor
+  // Add a quad - should succeed despite error interceptor.
   const addResult = store.addQuad(quad);
   assertEquals(addResult, true);
   assertEquals(countInterceptor.added, 1);
   assertEquals(countInterceptor.removed, 0);
 
-  // Verify error was captured by test interceptor
+  // Verify error was captured by test interceptor.
   assertEquals(errorInterceptor.getErrorCount(), 1);
   const addErrors = errorInterceptor.getErrorsForMethod("addQuad");
   assertEquals(addErrors.length, 1);
@@ -619,13 +619,13 @@ Deno.test("Error handling in interceptors", () => {
     "ErrorInterceptor: addQuad failed",
   );
 
-  // Remove the quad - should succeed despite error interceptor
+  // Remove the quad - should succeed despite error interceptor.
   const removeResult = store.removeQuad(quad);
   assertEquals(removeResult, true);
   assertEquals(countInterceptor.added, 1);
   assertEquals(countInterceptor.removed, 1);
 
-  // Verify error was captured for removeQuad too
+  // Verify error was captured for removeQuad too.
   assertEquals(errorInterceptor.getErrorCount(), 2);
   const removeErrors = errorInterceptor.getErrorsForMethod("removeQuad");
   assertEquals(removeErrors.length, 1);
@@ -653,13 +653,13 @@ Deno.test("Error handling with multiple error interceptors", () => {
   const graph = DataFactory.defaultGraph();
   const quad = DataFactory.quad(subject, predicate, object, graph);
 
-  // Add a quad - should succeed despite multiple error interceptors
+  // Add a quad - should succeed despite multiple error interceptors.
   const addResult = store.addQuad(quad);
   assertEquals(addResult, true);
   assertEquals(countInterceptor.added, 1);
   assertEquals(countInterceptor.removed, 0);
 
-  // Verify both error interceptors captured errors
+  // Verify both error interceptors captured errors.
   assertEquals(errorInterceptor1.getErrorCount(), 1);
   assertEquals(errorInterceptor2.getErrorCount(), 1);
 
@@ -702,7 +702,7 @@ Deno.test("Interceptor error handling with SPARQL operations", async () => {
   const errorInterceptor = new ErrorInterceptor();
   const store = new CustomN3Store([countInterceptor, errorInterceptor]);
 
-  // SPARQL INSERT should succeed despite error interceptor
+  // SPARQL INSERT should succeed despite error interceptor.
   await queryEngine.queryVoid(
     `PREFIX ex: <http://example.org/>
      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -714,12 +714,12 @@ Deno.test("Interceptor error handling with SPARQL operations", async () => {
     { sources: [store] },
   );
 
-  // Verify data was added despite errors
+  // Verify data was added despite errors.
   assertEquals(store.size, 2);
   assertEquals(countInterceptor.added, 2);
   assertEquals(countInterceptor.removed, 0);
 
-  // Verify errors were captured for each quad
+  // Verify errors were captured for each quad.
   assertEquals(errorInterceptor.getErrorCount(), 2);
   const addErrors = errorInterceptor.getErrorsForMethod("addQuad");
   assertEquals(addErrors.length, 2);
@@ -746,15 +746,15 @@ Deno.test("DatasetCore alias methods", async (t) => {
     const countInterceptor = new CountInterceptor();
     const store = new CustomN3Store([countInterceptor]);
 
-    // Test the add() alias
+    // Test the add() alias.
     const result = store.add(quad);
 
-    // Should return the store instance for chaining
+    // Should return the store instance for chaining.
     assertEquals(result, store);
-    // Should trigger interceptors
+    // Should trigger interceptors.
     assertEquals(countInterceptor.added, 1);
     assertEquals(countInterceptor.removed, 0);
-    // Should increase store size
+    // Should increase store size.
     assertEquals(store.size, 1);
   });
 
@@ -762,48 +762,48 @@ Deno.test("DatasetCore alias methods", async (t) => {
     const countInterceptor = new CountInterceptor();
     const store = new CustomN3Store([countInterceptor]);
 
-    // First add the quad
+    // First add the quad.
     store.addQuad(quad);
     assertEquals(countInterceptor.added, 1);
     assertEquals(store.size, 1);
 
-    // Test the delete() alias
+    // Test the delete() alias.
     const result = store.delete(quad);
 
-    // Should return the store instance for chaining
+    // Should return the store instance for chaining.
     assertEquals(result, store);
-    // Should trigger interceptors
+    // Should trigger interceptors.
     assertEquals(countInterceptor.added, 1);
     assertEquals(countInterceptor.removed, 1);
-    // Should decrease store size
+    // Should decrease store size.
     assertEquals(store.size, 0);
   });
 
   await t.step("has() alias should work correctly", () => {
     const store = new CustomN3Store();
 
-    // Initially should not have the quad
+    // Initially should not have the quad.
     assertEquals(store.has(quad), false);
 
-    // Add the quad
+    // Add the quad.
     store.addQuad(quad);
     assertEquals(store.size, 1);
 
-    // Now should have the quad
+    // Now should have the quad.
     assertEquals(store.has(quad), true);
 
-    // Remove the quad
+    // Remove the quad.
     store.removeQuad(quad);
     assertEquals(store.size, 0);
 
-    // Should not have the quad anymore
+    // Should not have the quad anymore.
     assertEquals(store.has(quad), false);
   });
 
   await t.step("match() alias should return DatasetCore", () => {
     const store = new CustomN3Store();
 
-    // Add some test data
+    // Add some test data.
     const quad1 = DataFactory.quad(
       DataFactory.namedNode("http://example.org/person1"),
       DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
@@ -828,18 +828,18 @@ Deno.test("DatasetCore alias methods", async (t) => {
     store.addQuad(quad3);
     assertEquals(store.size, 3);
 
-    // Test match() with subject filter
+    // Test match() with subject filter.
     const matches = store.match(subject);
     assertEquals(matches.size, 2); // Should match quad1 and quad2
 
-    // Test match() with predicate filter
+    // Test match() with predicate filter.
     const typeMatches = store.match(
       undefined,
       DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
     );
     assertEquals(typeMatches.size, 2); // Should match quad1 and quad3
 
-    // Test match() with no filters (should return all)
+    // Test match() with no filters (should return all).
     const allMatches = store.match();
     assertEquals(allMatches.size, 3);
   });
@@ -847,7 +847,7 @@ Deno.test("DatasetCore alias methods", async (t) => {
   await t.step("Symbol.iterator alias should work correctly", () => {
     const store = new CustomN3Store();
 
-    // Add some test data
+    // Add some test data.
     const quad1 = DataFactory.quad(
       DataFactory.namedNode("http://example.org/person1"),
       DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
@@ -865,7 +865,7 @@ Deno.test("DatasetCore alias methods", async (t) => {
     store.addQuad(quad2);
     assertEquals(store.size, 2);
 
-    // Test Symbol.iterator
+    // Test Symbol.iterator.
     const quads = Array.from(store);
     assertEquals(quads.length, 2);
     assertEquals(quads[0], quad1);
@@ -876,12 +876,12 @@ Deno.test("DatasetCore alias methods", async (t) => {
     const countInterceptor = new CountInterceptor();
     const store = new CustomN3Store([countInterceptor]);
 
-    // Test add() with interceptors
+    // Test add() with interceptors.
     store.add(quad);
     assertEquals(countInterceptor.added, 1);
     assertEquals(countInterceptor.removed, 0);
 
-    // Test delete() with interceptors
+    // Test delete() with interceptors.
     store.delete(quad);
     assertEquals(countInterceptor.added, 1);
     assertEquals(countInterceptor.removed, 1);
@@ -894,14 +894,14 @@ Deno.test("DatasetCore alias methods", async (t) => {
       const countInterceptor2 = new CountInterceptor();
       const store = new CustomN3Store([countInterceptor1, countInterceptor2]);
 
-      // Test add() with multiple interceptors
+      // Test add() with multiple interceptors.
       store.add(quad);
       assertEquals(countInterceptor1.added, 1);
       assertEquals(countInterceptor1.removed, 0);
       assertEquals(countInterceptor2.added, 1);
       assertEquals(countInterceptor2.removed, 0);
 
-      // Test delete() with multiple interceptors
+      // Test delete() with multiple interceptors.
       store.delete(quad);
       assertEquals(countInterceptor1.added, 1);
       assertEquals(countInterceptor1.removed, 1);
@@ -927,13 +927,13 @@ Deno.test("DatasetCore alias methods", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Test chaining add() calls
+    // Test chaining add() calls.
     const result = store.add(quad1).add(quad2);
     assertEquals(result, store);
     assertEquals(countInterceptor.added, 2);
     assertEquals(store.size, 2);
 
-    // Test chaining delete() calls
+    // Test chaining delete() calls.
     const deleteResult = store.delete(quad1).delete(quad2);
     assertEquals(deleteResult, store);
     assertEquals(countInterceptor.removed, 2);
@@ -951,16 +951,16 @@ Deno.test("DatasetCore alias methods", async (t) => {
       const quad1 = DataFactory.quad(subject, predicate, object, graph1);
       const quad2 = DataFactory.quad(subject, predicate, object, graph2);
 
-      // Add quads to different graphs
+      // Add quads to different graphs.
       store.add(quad1);
       store.add(quad2);
       assertEquals(store.size, 2);
 
-      // Test has() with specific graph
+      // Test has() with specific graph.
       assertEquals(store.has(quad1), true);
       assertEquals(store.has(quad2), true);
 
-      // Test match() with specific graph
+      // Test match() with specific graph.
       const graph1Matches = store.match(
         undefined,
         undefined,
@@ -977,7 +977,7 @@ Deno.test("DatasetCore alias methods", async (t) => {
       );
       assertEquals(graph2Matches.size, 1);
 
-      // Test delete() with specific graph
+      // Test delete() with specific graph.
       store.delete(quad1);
       assertEquals(store.size, 1);
       assertEquals(store.has(quad1), false);
@@ -991,18 +991,18 @@ Deno.test("DatasetCore alias methods", async (t) => {
     const blankNode = DataFactory.blankNode("b1");
     const quad = DataFactory.quad(subject, predicate, blankNode, graph);
 
-    // Test add() with blank node
+    // Test add() with blank node.
     store.add(quad);
     assertEquals(store.size, 1);
 
-    // Test has() with blank node
+    // Test has() with blank node.
     assertEquals(store.has(quad), true);
 
-    // Test match() with blank node
+    // Test match() with blank node.
     const matches = store.match(subject, predicate, blankNode);
     assertEquals(matches.size, 1);
 
-    // Test delete() with blank node
+    // Test delete() with blank node.
     store.delete(quad);
     assertEquals(store.size, 0);
     assertEquals(store.has(quad), false);
@@ -1014,18 +1014,18 @@ Deno.test("DatasetCore alias methods", async (t) => {
     const literal = DataFactory.literal("John Doe");
     const quad = DataFactory.quad(subject, predicate, literal, graph);
 
-    // Test add() with literal
+    // Test add() with literal.
     store.add(quad);
     assertEquals(store.size, 1);
 
-    // Test has() with literal
+    // Test has() with literal.
     assertEquals(store.has(quad), true);
 
-    // Test match() with literal
+    // Test match() with literal.
     const matches = store.match(subject, predicate, literal);
     assertEquals(matches.size, 1);
 
-    // Test delete() with literal
+    // Test delete() with literal.
     store.delete(quad);
     assertEquals(store.size, 0);
     assertEquals(store.has(quad), false);
@@ -1040,18 +1040,18 @@ Deno.test("DatasetCore alias methods", async (t) => {
     );
     const quad = DataFactory.quad(subject, predicate, typedLiteral, graph);
 
-    // Test add() with typed literal
+    // Test add() with typed literal.
     store.add(quad);
     assertEquals(store.size, 1);
 
-    // Test has() with typed literal
+    // Test has() with typed literal.
     assertEquals(store.has(quad), true);
 
-    // Test match() with typed literal
+    // Test match() with typed literal.
     const matches = store.match(subject, predicate, typedLiteral);
     assertEquals(matches.size, 1);
 
-    // Test delete() with typed literal
+    // Test delete() with typed literal.
     store.delete(quad);
     assertEquals(store.size, 0);
     assertEquals(store.has(quad), false);
@@ -1065,18 +1065,18 @@ Deno.test("DatasetCore alias methods", async (t) => {
       const langLiteral = DataFactory.literal("John Doe", "en");
       const quad = DataFactory.quad(subject, predicate, langLiteral, graph);
 
-      // Test add() with language-tagged literal
+      // Test add() with language-tagged literal.
       store.add(quad);
       assertEquals(store.size, 1);
 
-      // Test has() with language-tagged literal
+      // Test has() with language-tagged literal.
       assertEquals(store.has(quad), true);
 
-      // Test match() with language-tagged literal
+      // Test match() with language-tagged literal.
       const matches = store.match(subject, predicate, langLiteral);
       assertEquals(matches.size, 1);
 
-      // Test delete() with language-tagged literal
+      // Test delete() with language-tagged literal.
       store.delete(quad);
       assertEquals(store.size, 0);
       assertEquals(store.has(quad), false);
@@ -1139,7 +1139,7 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Add the quad first time
+    // Add the quad. first time
     const result1 = store.addQuad(quad);
     assertEquals(result1, true);
     assertEquals(countInterceptor.added, 1);
@@ -1161,12 +1161,12 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
       DataFactory.defaultGraph(),
     );
 
-    // Add the quad first
+    // Add the quad. first
     store.addQuad(quad);
     assertEquals(countInterceptor.added, 1);
     assertEquals(store.size, 1);
 
-    // Remove the quad
+    // Remove the quad.
     const result = store.removeQuad(quad);
     assertEquals(result, true);
     assertEquals(countInterceptor.added, 1);
@@ -1313,8 +1313,8 @@ Deno.test("CustomN3Store - Complete logic path coverage", async (t) => {
 
     // Add interceptor
     store.addInterceptor(countInterceptor);
-    store.addQuad(quad); // Add duplicate (should fail but trigger interceptor)
-    assertEquals(countInterceptor.added, 0); // addQuad failed, so no interceptor call
+    store.addQuad(quad); // Add duplicate (should fail but trigger interceptor).
+    assertEquals(countInterceptor.added, 0); // addQuad failed, so no interceptor call.
     assertEquals(store.size, 1);
 
     // Add a new quad to trigger interceptor
