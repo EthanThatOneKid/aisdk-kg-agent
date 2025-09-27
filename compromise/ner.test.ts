@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { CompromiseService } from "./ner.ts";
 
 const service = new CompromiseService();
@@ -12,17 +12,16 @@ Deno.test("CompromiseService - recognize", async () => {
 
   // Check that we get the expected entities (with duplicates across categories).
   const entityTexts = entities.map((e) => e.text);
-  assertEquals(entityTexts.includes("Alice"), true);
-  assertEquals(entityTexts.includes("Central Park"), true);
-  assertEquals(entityTexts.includes("on March 15, 2024"), true);
-  assertEquals(entityTexts.includes("March 15,"), true);
-  assertEquals(entityTexts.includes("Bob."), true);
+  assert(entityTexts.includes("Alice"));
+  assert(entityTexts.includes("Central Park"));
+  assert(entityTexts.includes("on March 15, 2024"));
+  assert(entityTexts.includes("March 15,"));
+  assert(entityTexts.includes("Bob."));
 
   // Check that entities are sorted by offset.
   for (let i = 1; i < entities.length; i++) {
-    assertEquals(
+    assert(
       entities[i].offset.start >= entities[i - 1].offset.start,
-      true,
     );
   }
 });

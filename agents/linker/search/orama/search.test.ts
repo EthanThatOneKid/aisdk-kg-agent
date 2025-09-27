@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import type { OramaTriple } from "./triple-store.ts";
 import { OramaSearchService } from "./search.ts";
 import { createOramaTripleStore, insertTriple } from "./triple-store.ts";
@@ -36,7 +36,7 @@ Deno.test("OramaSearchService - search with single match", async () => {
   assertEquals(result.text, "Alice");
   assertEquals(result.hits.length, 1);
   assertEquals(result.hits[0].subject, "http://example.org/person1");
-  assertEquals(result.hits[0].score > 0, true);
+  assert(result.hits[0].score > 0);
 });
 
 Deno.test("OramaSearchService - search with multiple matches", async () => {
@@ -74,12 +74,12 @@ Deno.test("OramaSearchService - search with multiple matches", async () => {
 
   // Verify both Alice entries are found.
   const subjects = result.hits.map((hit) => hit.subject);
-  assertEquals(subjects.includes("http://example.org/person1"), true);
-  assertEquals(subjects.includes("http://example.org/person2"), true);
+  assert(subjects.includes("http://example.org/person1"));
+  assert(subjects.includes("http://example.org/person2"));
 
   // Verify scores are positive.
   result.hits.forEach((hit) => {
-    assertEquals(hit.score > 0, true);
+    assert(hit.score > 0);
   });
 });
 
@@ -118,8 +118,8 @@ Deno.test("OramaSearchService - search with partial matches", async () => {
 
   // Verify both Gatsby entries are found.
   const subjects = result.hits.map((hit) => hit.subject);
-  assertEquals(subjects.includes("http://example.org/book1"), true);
-  assertEquals(subjects.includes("http://example.org/book2"), true);
+  assert(subjects.includes("http://example.org/book1"));
+  assert(subjects.includes("http://example.org/book2"));
 });
 
 Deno.test("OramaSearchService - search with no matches", async () => {
@@ -181,8 +181,8 @@ Deno.test("OramaSearchService - search with case sensitivity", async () => {
   });
 
   // Both searches should find matches (Orama is typically case-insensitive).
-  assertEquals(result1.hits.length > 0, true);
-  assertEquals(result2.hits.length > 0, true);
+  assert(result1.hits.length > 0);
+  assert(result2.hits.length > 0);
 });
 
 Deno.test("OramaSearchService - search with special characters", async () => {
@@ -268,7 +268,7 @@ Deno.test("OramaSearchService - search with duplicate subjects", async () => {
   assertEquals(result.hits[0].subject, "http://example.org/person1");
 
   // The score should be positive (may or may not be > 1.0 depending on Orama's scoring).
-  assertEquals(result.hits[0].score > 0, true);
+  assert(result.hits[0].score > 0);
 });
 
 Deno.test("OramaSearchService - search result sorting", async () => {
@@ -335,7 +335,7 @@ Deno.test("OramaSearchService - search with empty text", async () => {
 
   assertEquals(result.text, "");
   // Orama may return results even for empty search, so we just verify the structure.
-  assertEquals(Array.isArray(result.hits), true);
+  assert(Array.isArray(result.hits));
 });
 
 Deno.test("OramaSearchService - search with whitespace", async () => {

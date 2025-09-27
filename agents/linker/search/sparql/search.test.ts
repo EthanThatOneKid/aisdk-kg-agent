@@ -1,16 +1,8 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assertEquals } from "@std/assert";
 import { QueryEngine } from "@comunica/query-sparql";
 import * as n3 from "n3";
 import { insertTurtle } from "n3store/turtle.ts";
 import { SparqlSearchService } from "./search.ts";
-
-Deno.test("SparqlSearchService - constructor", () => {
-  const queryEngine = new QueryEngine();
-  const service = new SparqlSearchService(queryEngine, {});
-
-  assertExists(service);
-  assertEquals(typeof service.search, "function");
-});
 
 Deno.test("SparqlSearchService - search with occurrence-based scoring", async () => {
   const queryEngine = new QueryEngine();

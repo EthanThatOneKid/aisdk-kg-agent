@@ -37,7 +37,7 @@ ex:person1 rdf:type ex:Person ;
 
   // Check that all quads have the same subject
   const subjects = quads.map((q) => q.subject.value);
-  assertEquals(subjects.every((s) => s === "http://example.org/person1"), true);
+  assert(subjects.every((s) => s === "http://example.org/person1"));
 
   // Check predicates
   const predicates = quads.map((q) => q.predicate.value);

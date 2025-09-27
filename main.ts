@@ -131,7 +131,7 @@ if (import.meta.main) {
       );
       console.error("To fix this, you need to:");
       console.error(
-        "1. Get a Google AI API key from https://makersuite.google.com/app/apikey",
+        "1. Get a Google AI API key from https://aistudio.google.com/app/api-keys",
       );
       console.error(
         "2. Set the environment variable: GOOGLE_GENERATIVE_AI_API_KEY=your_api_key_here",

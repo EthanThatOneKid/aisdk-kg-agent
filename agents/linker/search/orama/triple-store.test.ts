@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import type { OramaTriple } from "./triple-store.ts";
 import {
   createOramaTripleStore,
@@ -32,7 +32,7 @@ Deno.test("OramaTripleStore - insertTriple", async () => {
   const id = await insertTriple(store, triple);
   assertExists(id);
   assertEquals(typeof id, "string");
-  assertEquals(id.length > 0, true);
+  assert(id.length > 0);
 });
 
 Deno.test("OramaTripleStore - insertTriple with multiple triples", async () => {
@@ -316,9 +316,9 @@ Deno.test("OramaTripleStore - duplicate triple handling", async () => {
   const id3 = await insertTriple(store, triple);
 
   // Verify all insertions return different IDs (Orama allows duplicates).
-  assertEquals(id1 !== id2, true);
-  assertEquals(id2 !== id3, true);
-  assertEquals(id1 !== id3, true);
+  assert(id1 !== id2);
+  assert(id2 !== id3);
+  assert(id1 !== id3);
 
   // Verify all instances can be found.
   const foundId1 = await findTriple(store, triple);

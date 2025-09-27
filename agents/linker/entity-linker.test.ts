@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertExists, assertRejects } from "@std/assert";
 import type { GeneratedTurtleVariable } from "agents/turtle/schema.ts";
 import { EntityLinker } from "./entity-linker.ts";
 import { GreedyDisambiguationService } from "./disambiguation/greedy/disambiguation.ts";
@@ -32,7 +32,7 @@ Deno.test("EntityLinker - linkEntities with no entities", async () => {
   const result = await linker.linkEntities([]);
 
   assertEquals(result.length, 0);
-  assertEquals(Array.isArray(result), true);
+  assert(Array.isArray(result));
 });
 
 Deno.test("EntityLinker - linkEntities with single entity, no search results", async () => {
@@ -87,7 +87,7 @@ Deno.test("EntityLinker - linkEntities with single entity, with search results",
   assertEquals(result.length, 1);
 
   // Verify entity linking produces at least one successful result.
-  assertEquals(result.length > 0, true);
+  assert(result.length > 0);
 
   // Verify the linked entity has the expected structure and properties.
   result.forEach((linkedEntity) => {
@@ -141,7 +141,7 @@ Deno.test("EntityLinker - linkEntities with multiple entities", async () => {
   assertEquals(result.length, 2);
 
   // Verify batch entity linking produces successful results.
-  assertEquals(result.length > 0, true);
+  assert(result.length > 0);
 
   // Verify we successfully linked both Alice and Central Park entities.
   const entityTexts = result.map((le) => le.entity.text);
@@ -149,8 +149,8 @@ Deno.test("EntityLinker - linkEntities with multiple entities", async () => {
   const hasCentralPark = entityTexts.some((text) =>
     text.includes("Central Park")
   );
-  assertEquals(hasAlice, true);
-  assertEquals(hasCentralPark, true);
+  assert(hasAlice);
+  assert(hasCentralPark);
 });
 
 Deno.test("EntityLinker - linkEntity with no search results", async () => {
@@ -247,7 +247,7 @@ Deno.test("EntityLinker - integration with real services", async () => {
   assertEquals(result.length, 2);
 
   // Check that we have some linked entities
-  assertEquals(result.length > 0, true);
+  assert(result.length > 0);
 
   // Verify the linked entity has the expected structure and properties. of linked entities
   result.forEach((linkedEntity) => {
@@ -313,7 +313,7 @@ Deno.test("EntityLinker - handles entities with special characters", async () =>
   assertEquals(result.length, 2);
 
   // Verify batch entity linking produces successful results.
-  assertEquals(result.length > 0, true);
+  assert(result.length > 0);
 });
 
 Deno.test("EntityLinker - handles entities with overlapping text", async () => {
@@ -350,7 +350,7 @@ Deno.test("EntityLinker - handles entities with overlapping text", async () => {
   assertEquals(result.length, 1);
 
   // Verify batch entity linking produces successful results.
-  assertEquals(result.length > 0, true);
+  assert(result.length > 0);
 });
 
 Deno.test("EntityLinker - preserves entity information", async () => {
@@ -397,8 +397,8 @@ Deno.test("EntityLinker - preserves entity information", async () => {
     assertExists(linkedEntity.entity.type);
     assertExists(linkedEntity.entity.name);
     assertExists(linkedEntity.entity.text);
-    assertEquals(linkedEntity.entity.id.length > 0, true);
-    assertEquals(linkedEntity.entity.text.length > 0, true);
+    assert(linkedEntity.entity.id.length > 0);
+    assert(linkedEntity.entity.text.length > 0);
   });
 });
 
@@ -498,7 +498,7 @@ Deno.test("EntityLinker - handles multiple search results and disambiguation", a
   assertEquals(result.length, 1);
 
   // Verify batch entity linking produces successful results.
-  assertEquals(result.length > 0, true);
+  assert(result.length > 0);
 
   // Verify disambiguation worked (should return the first/highest scoring result)
   result.forEach((linkedEntity) => {
@@ -542,10 +542,10 @@ Deno.test("EntityLinker - handles case sensitivity", async () => {
   const result2 = await linker.linkEntities(entities2);
 
   // Both should produce results (Orama is typically case-insensitive)
-  assertEquals(result1.length > 0, true);
-  assertEquals(result2.length > 0, true);
+  assert(result1.length > 0);
+  assert(result2.length > 0);
 
   // Both should have linked entities
-  assertEquals(result1.length > 0, true);
-  assertEquals(result2.length > 0, true);
+  assert(result1.length > 0);
+  assert(result2.length > 0);
 });
