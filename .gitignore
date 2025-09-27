@@ -1,3 +1,2 @@
 .env
-db.ttl
-orama.json
+results/

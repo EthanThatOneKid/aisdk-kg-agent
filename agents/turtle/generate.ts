@@ -1,5 +1,6 @@
 import type { LanguageModel } from "ai";
 import { generateObject } from "ai";
+import { validateTurtle } from "n3store/shacl/validate.ts";
 import { generateTurtleContext } from "./context/generate.ts";
 import type { GeneratedTurtle } from "./schema.ts";
 import { generatedTurtleSchema } from "./schema.ts";
@@ -10,6 +11,8 @@ import { generatedTurtleSchema } from "./schema.ts";
 export interface GenerateTurtleOptions {
   model: LanguageModel;
   inputText: string;
+  timestamp: string;
+  shapes?: string;
   temperature?: number;
   verbose?: boolean;
 }
@@ -22,12 +25,37 @@ export interface GenerateTurtleOptions {
 export async function generateTurtle(
   options: GenerateTurtleOptions,
 ): Promise<GeneratedTurtle> {
-  const result = await generateObject({
-    model: options.model,
-    temperature: options.temperature ?? 0.1,
-    schema: generatedTurtleSchema,
-    messages: generateTurtleContext(options),
-  });
+  const maxAttempts = 3;
+  const context = generateTurtleContext(options);
 
-  return result.object;
+  let attempts = 0;
+  while (attempts < maxAttempts) {
+    const result = await generateObject({
+      model: options.model,
+      temperature: options.temperature ?? 0.1,
+      schema: generatedTurtleSchema,
+      messages: context,
+    });
+
+    const errorText = await validateTurtle(
+      result.object.turtle,
+      options.shapes,
+    );
+    if (errorText === null) {
+      return result.object;
+    }
+
+    context.push(
+      { role: "assistant", content: JSON.stringify(result.object) },
+      { role: "user", content: `Error: ${errorText}` },
+    );
+
+    attempts++;
+
+    if (options.verbose) {
+      console.log(`Attempt ${attempts + 1} failed: ${errorText}`);
+    }
+  }
+
+  throw new Error("Failed to generate valid Turtle");
 }

@@ -1,23 +1,21 @@
 import { assert, assertEquals } from "@std/assert";
-import {
-  parseTurtle,
-  validateTurtle,
-  type ValidatorRequest,
-} from "./validate.ts";
+import { validateTurtle } from "./validate.ts";
 import schemaShapes from "./datashapes.org/schema.ttl" with { type: "text" };
 
 Deno.test("validateTurtle: valid when no schema provided", async () => {
-  const req: ValidatorRequest = {
-    graphText: `
+  const turtleText = `
 @prefix ex: <http://example.org/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 ex:a rdf:type ex:Thing .
-`.trim(),
-  };
-  const res = await validateTurtle(req);
-  assert(res.isValid);
-  assert(res.errorText === null);
+`.trim();
+
+  const result = await validateTurtle(turtleText);
+  assertEquals(
+    result,
+    null,
+    "Should return null for valid turtle with no schema",
+  );
 });
 
 Deno.test("validateTurtle: conforms against simple SHACL shapes", async () => {
@@ -47,12 +45,15 @@ ex:john rdf:type ex:Person ;
         ex:name "John" .
 `.trim();
 
-  const res = await validateTurtle({ graphText: data, schemaText: shapes });
-  assert(res.isValid);
-  assert(res.errorText === null);
+  const result = await validateTurtle(data, shapes);
+  assertEquals(
+    result,
+    null,
+    "Should return null for valid turtle that conforms to schema",
+  );
 });
 
-Deno.test("validateTurtle: violation produces isValid=false and errorText", async () => {
+Deno.test("validateTurtle: violation produces error text", async () => {
   const shapes = `
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix ex: <http://example.org/> .
@@ -70,45 +71,35 @@ ex:NameShape a sh:NodeShape ;
 ex:john rdf:type ex:Person .
 `.trim();
 
-  const res = await validateTurtle({
-    graphText: dataMissingName,
-    schemaText: shapes,
-  });
-  assert(!res.isValid);
-  assert(typeof res.errorText === "string" && res.errorText.length > 0);
+  const result = await validateTurtle(dataMissingName, shapes);
+  assert(result !== null, "Should return error text for validation violation");
+  assert(
+    typeof result === "string" && result.length > 0,
+    "Error text should be a non-empty string",
+  );
 });
 
-Deno.test("validateTurtle: malformed Turtle in graphText returns error", async () => {
+Deno.test("validateTurtle: malformed Turtle returns error", async () => {
   const malformed =
     `@prefix ex: <http://example.org/> .\nex:a ex:b "missing period"`;
-  const res = await validateTurtle({
-    graphText: malformed,
-    schemaText: undefined,
-  });
-  assert(!res.isValid);
-  assert(typeof res.errorText === "string" && res.errorText.length > 0);
+  const result = await validateTurtle(malformed);
+  assert(result !== null, "Should return error text for malformed turtle");
+  assert(
+    typeof result === "string" && result.length > 0,
+    "Error text should be a non-empty string",
+  );
 });
 
-Deno.test("validateTurtle: malformed Turtle in schemaText returns error", async () => {
+Deno.test("validateTurtle: malformed schema returns error", async () => {
   const data = `@prefix ex: <http://example.org/> .\nex:a ex:b ex:c .`;
   const malformedSchema =
     `@prefix sh: <http://www.w3.org/ns/shacl#> .\n[] a sh:NodeShape`;
-  const res = await validateTurtle({
-    graphText: data,
-    schemaText: malformedSchema,
-  });
-  assert(!res.isValid);
-  assert(typeof res.errorText === "string" && res.errorText.length > 0);
-});
-
-Deno.test("parseTurtle returns store with quads", () => {
-  const store = parseTurtle(
-    `@prefix ex: <http://example.org/> .\nex:a ex:b ex:c .`,
+  const result = await validateTurtle(data, malformedSchema);
+  assert(result !== null, "Should return error text for malformed schema");
+  assert(
+    typeof result === "string" && result.length > 0,
+    "Error text should be a non-empty string",
   );
-  // n3 store exposes size
-  // deno-lint-ignore no-explicit-any
-  const size = (store as any).size ?? 0;
-  assert(size > 0);
 });
 
 Deno.test("validateTurtle: generated example against datashapes schema", async () => {
@@ -134,11 +125,11 @@ Deno.test("validateTurtle: generated example against datashapes schema", async (
     schema:name "The Lost Bean Cafe" .
 `.trim();
 
-  const res = await validateTurtle({
-    graphText: data,
-    schemaText: schemaShapes,
-  });
-  assert(typeof res.isValid === "boolean");
+  const result = await validateTurtle(data, schemaShapes);
+  assert(
+    typeof result === "string" || result === null,
+    "Should return string or null",
+  );
 });
 
 Deno.test("validateTurtle: generated example with bad datatype violates datashapes schema", async () => {
@@ -164,13 +155,12 @@ Deno.test("validateTurtle: generated example with bad datatype violates datashap
     schema:name "The Lost Bean Cafe" .
 `.trim();
 
-  const res = await validateTurtle({
-    graphText: data,
-    schemaText: schemaShapes,
-  });
-  const error = res.errorText ?? "";
+  const result = await validateTurtle(data, schemaShapes);
   // The underlying validator may serialize reports with varying detail.
   // Require that validation failed and an error message is present.
-  assertEquals(res.isValid, false);
-  assert(error.length > 0);
+  assert(result !== null, "Should return error text for validation violation");
+  assert(
+    typeof result === "string" && result.length > 0,
+    "Error text should be a non-empty string",
+  );
 });

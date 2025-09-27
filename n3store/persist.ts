@@ -1,7 +1,7 @@
 import { CustomN3Store } from "./custom-n3store.ts";
 import { exportTurtle, insertTurtle } from "./turtle.ts";
 
-export async function createPersistedN3Store(filePath: string) {
+export async function createDenoPersistedN3Store(filePath: string) {
   const n3Store = new CustomN3Store();
   try {
     const data = await Deno.readTextFile(filePath);
@@ -21,4 +21,17 @@ export async function createPersistedN3Store(filePath: string) {
       await Deno.writeTextFile(filePath, data);
     },
   };
+}
+
+/**
+ * removeN3Store removes the persisted N3 store file.
+ */
+export async function removeN3Store(filePath: string): Promise<void> {
+  try {
+    await Deno.remove(filePath);
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) {
+      throw error;
+    }
+  }
 }

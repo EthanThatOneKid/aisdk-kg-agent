@@ -1,27 +1,27 @@
 import { google } from "@ai-sdk/google";
-import { generateTurtle } from "agents/turtle/generate-legacy.ts";
+import { TurtleGenerator } from "agents/turtle/generator.ts";
 import { EntityLinker } from "agents/linker/entity-linker.ts";
 import { CompromiseService } from "agents/linker/ner/compromise/ner.ts";
 import { PromptDisambiguationService } from "agents/linker/disambiguation/cli/disambiguation.ts";
 import { OramaSearchService } from "agents/linker/search/orama/search.ts";
-import { createDenoPersistedOramaTripleStore } from "agents/linker/search/orama/persist.ts";
-import { insertTurtle } from "agents/turtle/generate.ts";
 import {
-  createPlaceholderMapping,
-  replacePlaceholderIds,
-} from "agents/turtle/placeholder-replacer.ts";
-import shaclShapes from "agents/turtle/shacl/datashapes.org/schema.ttl" with {
+  createDenoPersistedOramaTripleStore,
+  removeOrama,
+} from "agents/linker/search/orama/persist.ts";
+import { OramaSyncInterceptor } from "n3store/interceptor/orama-sync-interceptor.ts";
+import { insertTurtle } from "n3store/turtle.ts";
+import { createDenoPersistedN3Store, removeN3Store } from "n3store/persist.ts";
+import shapes from "n3store/shacl/datashapes.org/schema.ttl" with {
   type: "text",
 };
-import { createPersistedN3Store } from "./n3store/custom-n3store.ts";
-import { OramaSyncInterceptor } from "./n3store/interceptor/orama-sync-interceptor.ts";
 
+const t = Date.now().toString();
 const config = {
   fast: true,
   clean: true,
   verbose: true,
-  oramaPath: "./orama.json",
-  n3StorePath: "./db.ttl",
+  oramaPath: `./results/${t}_orama.json`,
+  n3StorePath: `./results/${t}_db.ttl`,
 };
 
 if (import.meta.main) {
@@ -29,55 +29,51 @@ if (import.meta.main) {
     if (config.clean) {
       // Clean up existing files to start fresh.
       try {
-        await Deno.remove(config.oramaPath);
+        await removeOrama(config.oramaPath);
         if (config.verbose) {
           console.log(`🗑️ Deleted existing ${config.oramaPath}`);
         }
       } catch (error) {
-        if (!(error instanceof Deno.errors.NotFound)) {
-          console.warn(`Warning: Could not delete ${config.oramaPath}:`, error);
-        }
+        console.warn(`Warning: Could not delete ${config.oramaPath}:`, error);
       }
 
       try {
-        await Deno.remove(config.n3StorePath);
+        await removeN3Store(config.n3StorePath);
         if (config.verbose) {
           console.log(`🗑️ Deleted existing ${config.n3StorePath}`);
         }
       } catch (error) {
-        if (!(error instanceof Deno.errors.NotFound)) {
-          console.warn(
-            `Warning: Could not delete ${config.n3StorePath}:`,
-            error,
-          );
-        }
+        console.warn(
+          `Warning: Could not delete ${config.n3StorePath}:`,
+          error,
+        );
       }
     }
 
-    const model = google("models/gemini-2.5-flash");
+    // Create persisted stores after cleanup.
     const { orama, persist: persistOrama } =
       await createDenoPersistedOramaTripleStore(config.oramaPath);
+    const { n3Store, persist: persistN3Store } =
+      await createDenoPersistedN3Store(config.n3StorePath);
 
+    const model = google("models/gemini-2.5-flash");
+
+    // Create services using the already created stores.
     const searchService = new OramaSearchService(orama);
     const disambiguationService = new PromptDisambiguationService();
     const nerService = new CompromiseService();
-
-    // Create a managed N3Store for SPARQL queries.
-    const { n3Store, persist: persistN3Store } = await createPersistedN3Store(
-      config.n3StorePath,
-    );
 
     // Create an interceptor to sync N3 store changes with Orama store.
     const oramaSyncInterceptor = new OramaSyncInterceptor(orama);
     n3Store.addInterceptor(oramaSyncInterceptor);
 
     // Use the new entity discovery service instead of NER.
-    const entityDiscoveryService = new EntityLinker(
+    const entityLinker = new EntityLinker(
       nerService,
       searchService,
       disambiguationService,
     );
-
+    const generator = new TurtleGenerator(entityLinker);
     while (true) {
       const inputText = config.fast
         ? "I went to the store today"
@@ -91,71 +87,16 @@ if (import.meta.main) {
       if (config.verbose) {
         console.log("Generating Turtle with placeholders...");
       }
-      const timestamp = new Intl.DateTimeFormat(
-        "en-US",
-        {
-          timeZone: "America/Los_Angeles",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: false,
-        },
-      ).format(new Date());
-      const result = await generateTurtle(model, {
+      const result = await generator.generate({
+        model,
         inputText,
-        timestamp,
-        shaclShapes,
+        shapes,
+        timestamp: formatTimestamp(),
         verbose: config.verbose,
       });
 
-      // Step 2: Use entities directly from structured output
-      if (config.verbose) {
-        console.log("Using entities from structured output...");
-      }
-      const extractedEntities = result.entities;
-      if (config.verbose) {
-        console.log(
-          `Found ${extractedEntities.length} entities:`,
-          extractedEntities,
-        );
-      }
-
-      // Step 3: Perform entity linking on the extracted entities
-      if (config.verbose) {
-        console.log("Performing entity linking on extracted entities...");
-      }
-      const linkedEntities = await entityDiscoveryService.linkExtractedEntities(
-        extractedEntities,
-      );
-
-      // Step 4: Create placeholder mapping using linked entities
-      if (config.verbose) {
-        console.log("Creating placeholder mapping...");
-      }
-      const placeholderMapping = createPlaceholderMapping(
-        extractedEntities,
-        linkedEntities,
-      );
-
-      // Step 5: Replace placeholders with final IDs
-      if (config.verbose) {
-        console.log("Replacing placeholders with final IDs...");
-      }
-      const ttl = replacePlaceholderIds(result.turtle, placeholderMapping);
-
-      // Debug: Log the actual generated Turtle content.
-      if (config.verbose) {
-        console.log("🔍 Generated Turtle content:");
-        console.log("Length:", ttl.length);
-        console.log("Content:", JSON.stringify(ttl));
-        console.log("Raw content:", ttl);
-      }
-
       // Add the generated Turtle to the N3 store for persistence.
-      insertTurtle(n3Store, ttl);
+      insertTurtle(n3Store, result);
 
       // Save the N3 store to db.ttl for persistence.
       await persistN3Store();
@@ -219,4 +160,20 @@ if (import.meta.main) {
 
 export function genid(id: string): string {
   return `https://fartlabs.org/.well-known/genid/${id}`;
+}
+
+export function formatTimestamp(date = new Date()) {
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    },
+  ).format(date);
 }

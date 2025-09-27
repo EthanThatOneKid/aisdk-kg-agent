@@ -44,3 +44,16 @@ export async function createDenoPersistedOramaTripleStore(path: string) {
     throw error;
   }
 }
+
+/**
+ * removeOrama removes the persisted Orama store file.
+ */
+export async function removeOrama(filePath: string): Promise<void> {
+  try {
+    await Deno.remove(filePath);
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) {
+      throw error;
+    }
+  }
+}
