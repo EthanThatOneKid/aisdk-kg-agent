@@ -7,7 +7,7 @@ import { OramaSearchService } from "agents/linker/search/orama/search.ts";
 import {
   createDenoPersistedOramaTripleStore,
   removeOrama,
-} from "agents/linker/search/orama/persist.ts";
+} from "agents/linker/search/orama/persist/fs.ts";
 import { OramaSyncInterceptor } from "n3store/interceptor/orama-sync-interceptor.ts";
 import { insertTurtle } from "n3store/turtle.ts";
 import {

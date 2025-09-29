@@ -1,7 +1,8 @@
 {
   "lock": false,
   "tasks": {
-    "start": "deno run -A --env --unstable-raw-imports main.ts",
+    "start": "deno -A --env --unstable-raw-imports main.ts",
+    "web": "deno serve -A --env --unstable-raw-imports --unstable-kv web/main.ts",
     "test": "deno test --unstable-raw-imports --allow-env --allow-sys --unstable-kv",
     "check": "deno check --unstable-raw-imports",
     "outdated": "deno outdated --update --latest"
@@ -20,7 +21,7 @@
     "@std/cli": "jsr:@std/cli@^1.0.22",
     "@std/http": "jsr:@std/http@^1.0.20",
     "@types/n3": "npm:@types/n3@^1.26.0",
-    "ai": "npm:ai@^5.0.56",
+    "ai": "npm:ai@^5.0.59",
     "compromise": "npm:compromise@^14.14.4",
     "compromise-dates": "npm:compromise-dates@^3.7.1",
     "n3": "npm:n3@^1.26.0",

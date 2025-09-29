@@ -10,33 +10,31 @@ import type { OramaTripleStore } from "agents/linker/search/orama/triple-store.t
  * https://docs.oramasearch.com/docs/orama-js/plugins/plugin-data-persistence
  */
 export async function createDenoPersistedOramaTripleStore(path: string) {
+  const persistOrama = (orama: OramaTripleStore) => async () => {
+    const data = await persist(orama, "json");
+    if (typeof data !== "string") {
+      throw new Error("Data is not a string");
+    }
+
+    await Deno.writeTextFile(path, data);
+    return data;
+  };
+
   try {
     const data = await Deno.readTextFile(path);
     const orama = await restore<OramaTripleStore>("json", data);
+
     return {
       orama,
-      persist: async () => {
-        const data = await persist(orama, "json");
-        if (typeof data !== "string") {
-          throw new Error("Data is not a string");
-        }
-        await Deno.writeTextFile(path, data);
-      },
+      persist: persistOrama(orama),
     };
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) {
-      console.log(`Orama file ${path} not found, creating new instance...`);
+      // Orama file not found, create a new instance.
       const orama = await createOramaTripleStore();
       return {
         orama,
-        persist: async () => {
-          const data = await persist(orama, "json");
-          if (typeof data !== "string") {
-            throw new Error("Data is not a string");
-          }
-
-          await Deno.writeTextFile(path, data);
-        },
+        persist: persistOrama(orama),
       };
     }
 

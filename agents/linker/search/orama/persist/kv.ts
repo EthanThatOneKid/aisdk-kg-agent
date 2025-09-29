@@ -68,8 +68,9 @@ export async function setOramaToKv(
   if (typeof data !== "string") {
     throw new Error("Data is not a string");
   }
-  const mime = options?.format ?? "application/json";
-  const blob = new Blob([data], { type: mime });
+
+  const mimeType = options?.format ?? "application/json";
+  const blob = new Blob([data], { type: mimeType });
   return await setBlob(kv, key, blob, { expireIn: options?.expireIn });
 }
 
@@ -86,6 +87,7 @@ export async function getOramaJsonFromKv(
   if (blob !== null) {
     return await blob.text();
   }
+
   return null;
 }
 
@@ -102,6 +104,7 @@ export async function getOramaFromKv(
   if (json !== null) {
     return await restore<OramaTripleStore>("json", json);
   }
+
   return null;
 }
 
