@@ -1,7 +1,6 @@
-// import { persistToFile, restoreFromFile } from "@orama/plugin-data-persistence";
 import { persist, restore } from "@orama/plugin-data-persistence";
-import { createOramaTripleStore } from "./triple-store.ts";
-import type { OramaTripleStore } from "./triple-store.ts";
+import { createOramaTripleStore } from "agents/linker/search/orama/triple-store.ts";
+import type { OramaTripleStore } from "agents/linker/search/orama/triple-store.ts";
 
 /**
  * createDenoPersistedOramaTripleStore creates a persisted Orama triple store.
