@@ -130,55 +130,78 @@ export async function* ingest(
 ): AsyncGenerator<ServerSentEventMessage> {
   let eventId = 0;
 
-  yield {
-    event: "progress",
-    data: "Loading store",
-    id: eventId++,
-  };
+  try {
+    // Send connection confirmation
+    yield {
+      event: "connected",
+      data: "Connected to generation stream",
+      id: eventId++,
+    };
 
-  const { n3Store, persist: persistN3Store } =
-    await createDenoKvPersistedN3Store(kv, kvKeyTurtle(id));
-  const { orama, persist: persistOrama } =
-    await createDenoKvPersistedOramaTripleStore(kv, kvKeyOrama(id));
+    yield {
+      event: "progress",
+      data: "Loading store",
+      id: eventId++,
+    };
 
-  yield {
-    event: "progress",
-    data: "Generating graph",
-    id: eventId++,
-  };
+    const { n3Store, persist: persistN3Store } =
+      await createDenoKvPersistedN3Store(kv, kvKeyTurtle(id));
+    const { orama, persist: persistOrama } =
+      await createDenoKvPersistedOramaTripleStore(kv, kvKeyOrama(id));
 
-  const searchService = new OramaSearchService(orama);
-  const disambiguator = new GreedyDisambiguator(() =>
-    genid(crypto.randomUUID())
-  );
-  const entityLinker = new EntityLinker(
-    searchService,
-    disambiguator,
-  );
-  const turtleGenerator = new TurtleGenerator(entityLinker);
-  const generatedTurtle = await turtleGenerator.generate({
-    model: google("models/gemini-2.5-flash"),
-    timestamp: formatTimestamp(),
-    inputText,
-    shapes,
-  });
+    yield {
+      event: "progress",
+      data: "Generating graph",
+      id: eventId++,
+    };
 
-  yield {
-    event: "progress",
-    data: "Saving graph",
-    id: eventId++,
-  };
+    const searchService = new OramaSearchService(orama);
+    const disambiguator = new GreedyDisambiguator(() =>
+      genid(crypto.randomUUID())
+    );
+    const entityLinker = new EntityLinker(
+      searchService,
+      disambiguator,
+    );
+    const turtleGenerator = new TurtleGenerator(entityLinker);
+    const generatedTurtle = await turtleGenerator.generate({
+      model: google("models/gemini-2.5-flash"),
+      timestamp: formatTimestamp(),
+      inputText,
+      shapes,
+    });
 
-  await insertTurtle(n3Store, generatedTurtle);
-  await persistN3Store();
-  await persistOrama();
+    yield {
+      event: "progress",
+      data: "Saving graph",
+      id: eventId++,
+    };
 
-  const turtle = await exportTurtle(n3Store);
-  yield {
-    event: "result",
-    data: turtle,
-    id: eventId++,
-  };
+    await insertTurtle(n3Store, generatedTurtle);
+    await persistN3Store();
+    await persistOrama();
+
+    const turtle = await exportTurtle(n3Store);
+    yield {
+      event: "result",
+      data: turtle,
+      id: eventId++,
+    };
+
+    // Send completion confirmation
+    yield {
+      event: "complete",
+      data: "Generation completed successfully",
+      id: eventId++,
+    };
+  } catch (error) {
+    // Send error event
+    yield {
+      event: "error",
+      data: error instanceof Error ? error.message : "Unknown error occurred",
+      id: eventId++,
+    };
+  }
 }
 
 function genid(id: string) {

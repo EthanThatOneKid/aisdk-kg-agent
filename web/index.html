@@ -32,6 +32,41 @@
         background-color: #f9fafb; /* gray-50 */
         border-radius: 0.5rem; /* rounded-lg */
       }
+
+      /* Chat message animations */
+      .chat-message {
+        animation: slideIn 0.3s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Scrollbar styling for chat */
+      #chat-container::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      #chat-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+      }
+
+      #chat-container::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+      }
+
+      #chat-container::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+      }
     </style>
   </head>
   <body
@@ -39,40 +74,53 @@
   >
     <header class="mb-4">
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900">
-        Turtle Graph Visualizer
+        Knowledge Graph Chat
       </h1>
       <p class="text-gray-600 mt-1">
-        Paste your Turtle (.ttl) graph data below and click "Render Graph" to
-        visualize it.
+        Chat with AI to generate and explore knowledge graphs in real-time.
       </p>
     </header>
 
     <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
-      <!-- Input Area -->
+      <!-- Chat Area -->
       <div class="flex flex-col">
-        <label for="turtle-input" class="font-semibold mb-2"
-        >Turtle Input</label>
-        <textarea
-          id="turtle-input"
-          class="w-full flex-grow p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-          placeholder="@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix ex: <http://example.org/> .
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="font-semibold">Conversation</h2>
+          <div id="status-indicator" class="text-sm text-gray-500">
+            Ready
+          </div>
+        </div>
 
-ex:subject1 ex:predicate1 ex:object1 .
-ex:subject2 rdf:type ex:SomeClass .
-ex:object1 ex:another_predicate 'A literal value' ."
-        ></textarea>
-        <button
-          id="render-btn"
-          class="mt-4 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+        <div
+          id="chat-container"
+          class="flex-grow border border-gray-300 rounded-lg shadow-sm bg-white p-4 overflow-y-auto mb-4"
         >
-          Render Graph
-        </button>
+          <div id="chat-messages" class="space-y-4">
+            <!-- Messages will be added here -->
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <input
+            id="message-input"
+            type="text"
+            class="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+            placeholder="Type your message here..."
+            disabled
+          />
+          <button
+            id="send-btn"
+            class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled
+          >
+            Send
+          </button>
+        </div>
       </div>
 
       <!-- Graph Display Area -->
       <div class="flex flex-col min-h-[400px] lg:min-h-0">
-        <h2 class="font-semibold mb-2">Graph Visualization</h2>
+        <h2 class="font-semibold mb-2">Knowledge Graph</h2>
         <div
           id="cy-container"
           class="flex-grow border border-gray-300 rounded-lg shadow-sm overflow-hidden bg-white p-1"
@@ -86,57 +134,192 @@ ex:object1 ex:another_predicate 'A literal value' ."
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        const renderBtn = document.getElementById("render-btn");
-        const turtleInput = document.getElementById("turtle-input");
+        const messageInput = document.getElementById("message-input");
+        const sendBtn = document.getElementById("send-btn");
+        const chatMessages = document.getElementById("chat-messages");
+        const statusIndicator = document.getElementById(
+          "status-indicator",
+        );
         const messageBox = document.getElementById("message-box");
         let cy; // To hold the cytoscape instance
+        let eventSource = null; // To hold the SSE connection
+        let conversationId = `chat-${Date.now()}`;
+        let isGenerating = false;
 
-        // Set default turtle content
-        turtleInput.value =
-          `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix ex: <http://example.com/ns#> .
+        // Enable input and send button
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
 
-ex:Vincent_van_Gogh a ex:Artist ;
-    ex:bornIn "Netherlands" ;
-    ex:created ex:The_Starry_Night .
+        // Add welcome message
+        addMessage(
+          "assistant",
+          "Hello! I'm your AI assistant. Send me a message and I'll generate a knowledge graph for you. What would you like to explore?",
+        );
 
-ex:The_Starry_Night a ex:Painting ;
-    rdfs:label "The Starry Night" .
+        // Event listeners
+        sendBtn.addEventListener("click", sendMessage);
+        messageInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+          }
+        });
 
-ex:Artist rdfs:subClassOf ex:Person .
-`;
+        function sendMessage() {
+          const message = messageInput.value.trim();
+          if (!message || isGenerating) return;
 
-        renderBtn.addEventListener("click", renderGraph);
+          // Add user message to chat
+          addMessage("user", message);
 
-        function renderGraph() {
-          const turtleData = turtleInput.value;
-          if (!turtleData.trim()) {
-            showMessage(
-              "Textarea is empty. Please provide Turtle data.",
-            );
-            return;
+          // Clear input and disable controls
+          messageInput.value = "";
+          setGenerating(true);
+
+          // Start graph generation
+          generateGraph(message);
+        }
+
+        function generateGraph(inputText) {
+          // Close any existing connection
+          if (eventSource) {
+            eventSource.close();
           }
 
-          messageBox.textContent = "";
+          // Add progress message
+          addMessage(
+            "assistant",
+            "Generating knowledge graph...",
+            true,
+          );
 
-          try {
-            const elements = parseTurtle(turtleData);
-            if (
-              elements.nodes.length === 0 && elements.edges.length === 0
-            ) {
-              showMessage(
-                "Could not parse any nodes or edges from the input.",
+          // Create SSE connection
+          const url = new URL(
+            `/api/v1/graphs/${encodeURIComponent(conversationId)}/sse`,
+            window.location.origin,
+          );
+          url.searchParams.set("query", inputText);
+
+          eventSource = new EventSource(url.toString());
+
+          eventSource.addEventListener("connected", (event) => {
+            updateStatus("Connected", "text-blue-500");
+          });
+
+          eventSource.addEventListener("progress", (event) => {
+            updateStatus("Generating...", "text-yellow-500");
+            updateLastMessage(
+              `Generating knowledge graph... (${event.data})`,
+            );
+          });
+
+          eventSource.addEventListener("result", (event) => {
+            updateStatus("Rendering...", "text-purple-500");
+            updateLastMessage("Graph generated, rendering...");
+
+            try {
+              const elements = parseTurtle(event.data);
+              if (
+                elements.nodes.length === 0 &&
+                elements.edges.length === 0
+              ) {
+                updateLastMessage("Generated graph is empty");
+                showMessage("Generated graph is empty");
+                return;
+              }
+              initializeCytoscape(elements);
+              updateLastMessage(
+                "Knowledge graph generated successfully!",
               );
-              return;
+              updateStatus("Complete", "text-green-500");
+            } catch (error) {
+              console.error("Rendering Error:", error);
+              updateLastMessage(
+                `Error rendering graph: ${error.message}`,
+              );
+              showMessage(`Error rendering graph: ${error.message}`);
             }
-            initializeCytoscape(elements);
-          } catch (error) {
-            console.error("Parsing or Rendering Error:", error);
-            showMessage(
-              `Error: ${error.message}. Please check the console for details.`,
-            );
+          });
+
+          eventSource.addEventListener("complete", (event) => {
+            updateStatus("Complete", "text-green-500");
+            eventSource.close();
+            eventSource = null;
+            setGenerating(false);
+          });
+
+          eventSource.addEventListener("error", (event) => {
+            updateStatus("Error", "text-red-500");
+            updateLastMessage(`Generation error: ${event.data}`);
+            showMessage(`Generation error: ${event.data}`);
+            eventSource.close();
+            eventSource = null;
+            setGenerating(false);
+          });
+
+          eventSource.onerror = (error) => {
+            console.error("SSE Error:", error);
+            updateStatus("Connection Error", "text-red-500");
+            updateLastMessage("Connection error. Please try again.");
+            showMessage("Connection error. Please try again.");
+            if (eventSource) {
+              eventSource.close();
+              eventSource = null;
+            }
+            setGenerating(false);
+          };
+        }
+
+        function addMessage(sender, content, isProgress = false) {
+          const messageDiv = document.createElement("div");
+          messageDiv.className = `flex ${
+            sender === "user" ? "justify-end" : "justify-start"
+          } chat-message`;
+
+          const messageContent = document.createElement("div");
+          messageContent.className =
+            `max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+              sender === "user"
+                ? "bg-blue-600 text-white"
+                : isProgress
+                ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+                : "bg-gray-100 text-gray-800"
+            }`;
+
+          messageContent.textContent = content;
+          messageDiv.appendChild(messageContent);
+
+          // Add timestamp
+          const timestamp = document.createElement("div");
+          timestamp.className = `text-xs text-gray-500 mt-1 ${
+            sender === "user" ? "text-right" : "text-left"
+          }`;
+          timestamp.textContent = new Date().toLocaleTimeString();
+          messageDiv.appendChild(timestamp);
+
+          chatMessages.appendChild(messageDiv);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+
+          return messageContent;
+        }
+
+        function updateLastMessage(content) {
+          const lastMessage = chatMessages.lastElementChild
+            ?.querySelector("div:first-child");
+          if (lastMessage) {
+            lastMessage.textContent = content;
           }
+        }
+
+        function updateStatus(text, className) {
+          statusIndicator.textContent = text;
+          statusIndicator.className = `text-sm ${className}`;
+        }
+
+        function setGenerating(generating) {
+          isGenerating = generating;
+          messageInput.disabled = generating;
+          sendBtn.disabled = generating;
         }
 
         function showMessage(message) {
@@ -147,6 +330,13 @@ ex:Artist rdfs:subClassOf ex:Person .
           document.getElementById("cy").innerHTML =
             `<div class="flex items-center justify-center h-full text-gray-500">${message}</div>`;
         }
+
+        // Cleanup on page unload
+        window.addEventListener("beforeunload", () => {
+          if (eventSource) {
+            eventSource.close();
+          }
+        });
 
         function parseTurtle(turtle) {
           const parser = new N3.Parser();
