@@ -90,7 +90,7 @@ export default {
         },
       },
       {
-        method: "POST",
+        method: "GET",
         pattern: new URLPattern({ pathname: "/api/v1/graphs/:id/sse" }),
         handler: (request: Request, params?: URLPatternResult) => {
           const id = params?.pathname.groups.id;
