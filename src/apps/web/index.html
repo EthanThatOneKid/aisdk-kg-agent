@@ -70,7 +70,7 @@
     </style>
   </head>
   <body
-    class="bg-gray-100 text-gray-800 h-full flex flex-col p-4 md:p-6 lg:p-8"
+    class="bg-gray-100 text-gray-800 h-screen flex flex-col p-4 md:p-6 lg:p-8 overflow-hidden"
   >
     <header class="mb-4">
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900">
@@ -81,9 +81,11 @@
       </p>
     </header>
 
-    <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
+    <div
+      class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0 overflow-hidden"
+    >
       <!-- Chat Area -->
-      <div class="flex flex-col">
+      <div class="flex flex-col min-h-0">
         <div class="flex justify-between items-center mb-2">
           <h2 class="font-semibold">Conversation</h2>
           <div class="flex items-center space-x-2">
@@ -110,7 +112,7 @@
         <!-- Conversation History Panel (Hidden by default) -->
         <div
           id="conversation-history-panel"
-          class="hidden border border-gray-300 rounded-lg bg-gray-50 mb-4 max-h-48 overflow-y-auto"
+          class="hidden border border-gray-300 rounded-lg bg-gray-50 mb-4 h-48 overflow-y-auto flex-shrink-0"
         >
           <div class="p-3">
             <h3 class="text-sm font-semibold text-gray-700 mb-2">
@@ -124,14 +126,14 @@
 
         <div
           id="chat-container"
-          class="flex-grow border border-gray-300 rounded-lg shadow-sm bg-white p-4 overflow-y-auto mb-4"
+          class="flex-1 border border-gray-300 rounded-lg shadow-sm bg-white p-4 overflow-y-auto mb-4 min-h-0"
         >
           <div id="chat-messages" class="space-y-4">
             <!-- Messages will be added here -->
           </div>
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-shrink-0">
           <input
             id="message-input"
             type="text"
@@ -150,11 +152,11 @@
       </div>
 
       <!-- Graph Display Area -->
-      <div class="flex flex-col min-h-[400px] lg:min-h-0">
+      <div class="flex flex-col min-h-0">
         <h2 class="font-semibold mb-2">Knowledge Graph</h2>
         <div
           id="cy-container"
-          class="flex-grow border border-gray-300 rounded-lg shadow-sm overflow-hidden bg-white p-1"
+          class="flex-1 border border-gray-300 rounded-lg shadow-sm overflow-hidden bg-white p-1 min-h-0"
         >
           <div id="cy"></div>
         </div>
