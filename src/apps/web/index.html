@@ -86,8 +86,39 @@
       <div class="flex flex-col">
         <div class="flex justify-between items-center mb-2">
           <h2 class="font-semibold">Conversation</h2>
-          <div id="status-indicator" class="text-sm text-gray-500">
-            Ready
+          <div class="flex items-center space-x-2">
+            <div id="status-indicator" class="text-sm text-gray-500">
+              Ready
+            </div>
+            <button
+              id="new-conversation-btn"
+              class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              title="Start New Conversation"
+            >
+              + New
+            </button>
+            <button
+              id="conversation-history-btn"
+              class="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+              title="Conversation History"
+            >
+              📚
+            </button>
+          </div>
+        </div>
+
+        <!-- Conversation History Panel (Hidden by default) -->
+        <div
+          id="conversation-history-panel"
+          class="hidden border border-gray-300 rounded-lg bg-gray-50 mb-4 max-h-48 overflow-y-auto"
+        >
+          <div class="p-3">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">
+              Recent Conversations
+            </h3>
+            <div id="conversation-list" class="space-y-1">
+              <!-- Conversation items will be populated here -->
+            </div>
           </div>
         </div>
 
@@ -143,12 +174,17 @@
         const messageBox = document.getElementById("message-box");
         let cy; // To hold the cytoscape instance
         let eventSource = null; // To hold the SSE connection
-        let conversationId = `chat-${Date.now()}`;
+        let conversationId = getConversationIdFromUrl() ||
+          `chat-${Date.now()}`;
         let isGenerating = false;
+        let conversationHistory = loadConversationHistory();
 
         // Enable input and send button
         messageInput.disabled = false;
         sendBtn.disabled = false;
+
+        // Initialize conversation
+        initializeConversation();
 
         // Add welcome message
         addMessage(
@@ -165,12 +201,308 @@
           }
         });
 
+        // Conversation history event listeners
+        document.getElementById("new-conversation-btn")
+          .addEventListener("click", createNewConversation);
+        document.getElementById("conversation-history-btn")
+          .addEventListener("click", toggleConversationHistory);
+
+        // Browser history integration
+        window.addEventListener("popstate", (event) => {
+          const urlConversationId = getConversationIdFromUrl();
+          if (
+            urlConversationId && urlConversationId !== conversationId
+          ) {
+            switchToConversation(urlConversationId);
+          }
+        });
+
+        // Conversation History Management Functions
+        function getConversationIdFromUrl() {
+          const urlParams = new URLSearchParams(window.location.search);
+          return urlParams.get("conversationId");
+        }
+
+        function updateUrlWithConversationId(id) {
+          const url = new URL(window.location);
+          url.searchParams.set("conversationId", id);
+          window.history.replaceState(
+            { conversationId: id },
+            "",
+            url.toString(),
+          );
+        }
+
+        function loadConversationHistory() {
+          const history = localStorage.getItem("conversationHistory");
+          return history ? JSON.parse(history) : [];
+        }
+
+        function saveConversationHistory() {
+          localStorage.setItem(
+            "conversationHistory",
+            JSON.stringify(conversationHistory),
+          );
+        }
+
+        function addToConversationHistory(id, title, timestamp) {
+          const existingIndex = conversationHistory.findIndex((conv) =>
+            conv.id === id
+          );
+          const conversation = {
+            id,
+            title: title ||
+              `Conversation ${conversationHistory.length + 1}`,
+            timestamp: timestamp || new Date().toISOString(),
+          };
+
+          if (existingIndex >= 0) {
+            conversationHistory[existingIndex] = conversation;
+          } else {
+            conversationHistory.unshift(conversation);
+          }
+
+          // Keep only last 50 conversations
+          if (conversationHistory.length > 50) {
+            conversationHistory = conversationHistory.slice(0, 50);
+          }
+
+          saveConversationHistory();
+          updateConversationHistoryUI();
+        }
+
+        function initializeConversation() {
+          // Update URL with current conversation ID
+          updateUrlWithConversationId(conversationId);
+
+          // Add current conversation to history if not already present
+          const existingConv = conversationHistory.find((conv) =>
+            conv.id === conversationId
+          );
+          if (!existingConv) {
+            addToConversationHistory(
+              conversationId,
+              `New Conversation ${conversationHistory.length + 1}`,
+            );
+          }
+
+          // Load conversation data if it exists
+          loadConversationData(conversationId);
+        }
+
+        function loadConversationData(id) {
+          const conversationData = localStorage.getItem(
+            `conversation_${id}`,
+          );
+          if (conversationData) {
+            try {
+              const data = JSON.parse(conversationData);
+              // Restore chat messages
+              if (data.messages) {
+                chatMessages.innerHTML = "";
+                data.messages.forEach((msg) => {
+                  addMessage(msg.role, msg.content, msg.isProgress);
+                });
+              }
+              // Restore graph if it exists
+              if (
+                data.graphElements &&
+                data.graphElements.nodes.length > 0
+              ) {
+                initializeCytoscape(data.graphElements);
+              }
+            } catch (error) {
+              console.error("Error loading conversation data:", error);
+            }
+          }
+        }
+
+        function saveConversationData(id) {
+          const messages = Array.from(chatMessages.children).map(
+            (msgEl) => {
+              // Find the message content using the .message-content class
+              const messageContent = msgEl.querySelector(
+                ".message-content",
+              );
+              const content = messageContent
+                ? messageContent.textContent
+                : "";
+
+              return {
+                role: msgEl.classList.contains("user-message")
+                  ? "user"
+                  : "assistant",
+                content: content,
+                isProgress: msgEl.classList.contains(
+                  "progress-message",
+                ),
+              };
+            },
+          );
+
+          const graphElements = cy
+            ? {
+              nodes: cy.nodes().map((node) => ({
+                data: node.data(),
+              })),
+              edges: cy.edges().map((edge) => ({
+                data: edge.data(),
+              })),
+            }
+            : { nodes: [], edges: [] };
+
+          const conversationData = {
+            messages,
+            graphElements,
+            timestamp: new Date().toISOString(),
+          };
+
+          localStorage.setItem(
+            `conversation_${id}`,
+            JSON.stringify(conversationData),
+          );
+        }
+
+        function createNewConversation() {
+          // Save current conversation before switching
+          saveConversationData(conversationId);
+
+          const newId = `chat-${Date.now()}`;
+          conversationId = newId;
+
+          // Use pushState to add to browser history
+          const url = new URL(window.location);
+          url.searchParams.set("conversationId", newId);
+          window.history.pushState(
+            { conversationId: newId },
+            "",
+            url.toString(),
+          );
+
+          // Clear current chat
+          chatMessages.innerHTML = "";
+          if (cy) {
+            cy.destroy();
+            cy = null;
+          }
+
+          // Add to history
+          addToConversationHistory(
+            newId,
+            `New Conversation ${conversationHistory.length + 1}`,
+          );
+
+          // Add welcome message
+          addMessage(
+            "assistant",
+            "Hello! I'm your AI assistant. Send me a message and I'll generate a knowledge graph for you. What would you like to explore?",
+          );
+        }
+
+        function switchToConversation(id) {
+          if (id === conversationId) return;
+
+          // Save current conversation
+          saveConversationData(conversationId);
+
+          // Switch to new conversation
+          conversationId = id;
+
+          // Use pushState to add to browser history
+          const url = new URL(window.location);
+          url.searchParams.set("conversationId", id);
+          window.history.pushState(
+            { conversationId: id },
+            "",
+            url.toString(),
+          );
+
+          loadConversationData(id);
+
+          // Update history UI
+          updateConversationHistoryUI();
+        }
+
+        function toggleConversationHistory() {
+          const panel = document.getElementById(
+            "conversation-history-panel",
+          );
+          const btn = document.getElementById(
+            "conversation-history-btn",
+          );
+
+          if (panel.classList.contains("hidden")) {
+            panel.classList.remove("hidden");
+            btn.classList.remove("bg-gray-500");
+            btn.classList.add("bg-blue-500");
+            updateConversationHistoryUI();
+          } else {
+            panel.classList.add("hidden");
+            btn.classList.remove("bg-blue-500");
+            btn.classList.add("bg-gray-500");
+          }
+        }
+
+        function updateConversationHistoryUI() {
+          const conversationList = document.getElementById(
+            "conversation-list",
+          );
+          conversationList.innerHTML = "";
+
+          if (conversationHistory.length === 0) {
+            conversationList.innerHTML =
+              '<p class="text-sm text-gray-500 text-center py-2">No conversations yet</p>';
+            return;
+          }
+
+          conversationHistory.forEach((conv, index) => {
+            const isActive = conv.id === conversationId;
+            const convElement = document.createElement("div");
+            convElement.className =
+              `p-2 rounded cursor-pointer text-sm transition-colors ${
+                isActive
+                  ? "bg-blue-100 border border-blue-300 text-blue-800"
+                  : "hover:bg-gray-100 text-gray-700"
+              }`;
+
+            convElement.innerHTML = `
+              <div class="font-medium truncate">${conv.title}</div>
+              <div class="text-xs text-gray-500">${
+              new Date(conv.timestamp).toLocaleString()
+            }</div>
+            `;
+
+            convElement.addEventListener("click", () => {
+              if (!isActive) {
+                switchToConversation(conv.id);
+                toggleConversationHistory(); // Hide panel after selection
+              }
+            });
+
+            conversationList.appendChild(convElement);
+          });
+        }
+
         function sendMessage() {
           const message = messageInput.value.trim();
           if (!message || isGenerating) return;
 
           // Add user message to chat
           addMessage("user", message);
+
+          // Update conversation title if this is the first user message
+          const userMessages = Array.from(
+            chatMessages.querySelectorAll(".user-message"),
+          );
+          if (userMessages.length === 1) {
+            const title = message.length > 50
+              ? message.substring(0, 50) + "..."
+              : message;
+            addToConversationHistory(conversationId, title);
+          }
+
+          // Save conversation data
+          saveConversationData(conversationId);
 
           // Clear input and disable controls
           messageInput.value = "";
@@ -227,6 +559,9 @@
                 showMessage("Generated graph is empty");
                 return;
               }
+
+              // Save conversation data after successful generation
+              saveConversationData(conversationId);
               initializeCytoscape(elements);
               updateLastMessage(
                 "Knowledge graph generated successfully!",
@@ -274,11 +609,13 @@
           const messageDiv = document.createElement("div");
           messageDiv.className = `flex ${
             sender === "user" ? "justify-end" : "justify-start"
-          } chat-message`;
+          } chat-message ${
+            sender === "user" ? "user-message" : "assistant-message"
+          } ${isProgress ? "progress-message" : ""}`;
 
           const messageContent = document.createElement("div");
           messageContent.className =
-            `max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+            `message-content max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
               sender === "user"
                 ? "bg-blue-600 text-white"
                 : isProgress
@@ -305,7 +642,7 @@
 
         function updateLastMessage(content) {
           const lastMessage = chatMessages.lastElementChild
-            ?.querySelector("div:first-child");
+            ?.querySelector(".message-content");
           if (lastMessage) {
             lastMessage.textContent = content;
           }
