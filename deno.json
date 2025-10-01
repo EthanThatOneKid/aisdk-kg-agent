@@ -1,15 +1,14 @@
 {
   "lock": false,
   "tasks": {
-    "start": "deno -A --env --unstable-raw-imports main.ts",
-    "web": "deno serve -A --env --unstable-raw-imports --unstable-kv web/main.ts",
+    "cli": "deno -A --env --unstable-raw-imports src/apps/cli/main.ts",
+    "web": "deno serve -A --env --unstable-raw-imports --unstable-kv src/apps/web/main.ts",
     "test": "deno test --unstable-raw-imports --allow-env --allow-sys --unstable-kv",
     "check": "deno check --unstable-raw-imports",
     "outdated": "deno outdated --update --latest"
   },
   "imports": {
-    "agents/": "./agents/",
-    "n3store/": "./n3store/",
+    "src/": "./src/",
     "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.17",
     "@comunica/types": "npm:@comunica/types@^4.4.0",
     "@comunica/query-sparql-rdfjs-lite": "npm:@comunica/query-sparql-rdfjs-lite@^4.4.1",

@@ -1,0 +1,182 @@
+import { google } from "@ai-sdk/google";
+import { TurtleGenerator } from "src/kg/generator/generator.ts";
+import { EntityLinker } from "src/kg/linker/entity-linker.ts";
+import { GreedyDisambiguator } from "src/kg/linker/disambiguator/greedy/disambiguator.ts";
+import { PromptDisambiguationService } from "src/kg/linker/disambiguator/cli/disambiguator.ts";
+import { OramaSearchService } from "src/search/orama/search.ts";
+import {
+  createDenoPersistedOramaTripleStore,
+  removeOrama,
+} from "src/orama/persist/fs.ts";
+import { OramaSyncInterceptor } from "src/n3store/interceptors/orama-sync-interceptor.ts";
+import {
+  createDenoPersistedN3Store,
+  removeN3Store,
+} from "src/n3store/persist/fs.ts";
+import { insertTurtle } from "src/n3store/turtle.ts";
+import shapes from "src/n3store/shacl/datashapes.org/schema.ttl" with {
+  type: "text",
+};
+
+const t = Date.now().toString();
+const config = {
+  fast: false,
+  clean: true,
+  verbose: true,
+  oramaPath: `./results/${t}_orama.json`,
+  n3StorePath: `./results/${t}_db.ttl`,
+};
+
+if (import.meta.main) {
+  try {
+    if (config.clean) {
+      // Clean up existing files to start fresh.
+      try {
+        await removeOrama(config.oramaPath);
+        if (config.verbose) {
+          console.log(`🗑️ Deleted existing ${config.oramaPath}`);
+        }
+      } catch (error) {
+        console.warn(`Warning: Could not delete ${config.oramaPath}:`, error);
+      }
+
+      try {
+        await removeN3Store(config.n3StorePath);
+        if (config.verbose) {
+          console.log(`🗑️ Deleted existing ${config.n3StorePath}`);
+        }
+      } catch (error) {
+        console.warn(
+          `Warning: Could not delete ${config.n3StorePath}:`,
+          error,
+        );
+      }
+    }
+
+    // Create persisted stores after cleanup.
+    const { orama, persist: persistOrama } =
+      await createDenoPersistedOramaTripleStore(config.oramaPath);
+    const { n3Store, persist: persistN3Store } =
+      await createDenoPersistedN3Store(config.n3StorePath);
+
+    const model = google("models/gemini-2.5-flash");
+
+    // Create services using the already created stores.
+    const searchService = new OramaSearchService(orama);
+    const disambiguationService = config.fast
+      ? new GreedyDisambiguator(() => genid(crypto.randomUUID()))
+      : new PromptDisambiguationService(() => genid(crypto.randomUUID()));
+
+    // Create an interceptor to sync N3 store changes with Orama store.
+    const oramaSyncInterceptor = new OramaSyncInterceptor(orama);
+    n3Store.addInterceptor(oramaSyncInterceptor);
+
+    // Use the new entity discovery service instead of NER.
+    const entityLinker = new EntityLinker(
+      searchService,
+      disambiguationService,
+    );
+    const generator = new TurtleGenerator(entityLinker);
+    while (true) {
+      const inputText = config.fast
+        ? "I went to the store today"
+        : prompt("USER>");
+      if (!inputText) {
+        console.error("No input text provided");
+        continue;
+      }
+
+      // Step 1: Generate Turtle with placeholders (fast, no external dependencies)
+      if (config.verbose) {
+        console.log("Generating Turtle...");
+      }
+      const result = await generator.generate({
+        model,
+        inputText,
+        shapes,
+        timestamp: formatTimestamp(),
+        verbose: config.verbose,
+      });
+
+      // Add the generated Turtle to the N3 store for persistence.
+      insertTurtle(n3Store, result);
+
+      // Save the N3 store to db.ttl for persistence.
+      await persistN3Store();
+
+      // Save the Orama database for persistence.
+      await persistOrama();
+
+      if (config.verbose) {
+        console.log(
+          `Added generated Turtle to N3 store. Total triples: ${n3Store.size}`,
+        );
+      }
+
+      if (config.fast) {
+        break;
+      }
+    }
+  } catch (error) {
+    console.error("=== ERROR DETAILS ===");
+    console.error("Error name:", (error as Error).name);
+    console.error("Error message:", (error as Error).message);
+    console.error("Error stack:", (error as Error).stack);
+
+    // Check if it's a Google API error.
+    if ((error as Error).name === "AI_LoadAPIKeyError") {
+      console.error("\n=== GOOGLE API ERROR ===");
+      console.error(
+        "This is a Google API key error. The application requires a valid Google Generative AI API key.",
+      );
+      console.error("To fix this, you need to:");
+      console.error(
+        "1. Get a Google AI API key from https://aistudio.google.com/app/api-keys",
+      );
+      console.error(
+        "2. Set the environment variable: GOOGLE_GENERATIVE_AI_API_KEY=your_api_key_here",
+      );
+      console.error("3. Or pass it directly to the google() function");
+      console.error("\nCurrent environment variables:");
+      console.error(
+        "GOOGLE_GENERATIVE_AI_API_KEY:",
+        Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY") ? "SET" : "NOT SET",
+      );
+    } else if ((error as Error).name === "AI_UnsupportedModelVersionError") {
+      console.error("\n=== MODEL VERSION ERROR ===");
+      console.error(
+        "This is a model version compatibility error with the AI SDK.",
+      );
+    } else {
+      console.error("\n=== OTHER ERROR ===");
+      console.error(
+        "This appears to be a different type of error, not related to the Google API.",
+      );
+    }
+
+    console.error("\n=== FULL ERROR OBJECT ===");
+    console.error(JSON.stringify(error, null, 2));
+  } finally {
+    console.log("Done.");
+  }
+}
+
+export function genid(id: string): string {
+  return `https://fartlabs.org/.well-known/genid/${id}`;
+}
+
+export function formatTimestamp(date = new Date()) {
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    },
+  ).format(date);
+}
