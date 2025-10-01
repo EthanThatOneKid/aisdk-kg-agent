@@ -2,6 +2,8 @@ import { assertEquals, assertExists } from "@std/assert";
 import { DataFactory } from "n3";
 import { createOramaTripleStore, findTriple } from "src/orama/triple-store.ts";
 import { OramaSyncInterceptor } from "./orama-sync-interceptor.ts";
+import { CustomN3Store } from "src/n3store/custom-n3store.ts";
+import { insertTurtle } from "src/n3store/turtle.ts";
 
 Deno.test("OramaSyncInterceptor: addQuad syncs to Orama store", async () => {
   const oramaStore = createOramaTripleStore();
@@ -310,3 +312,113 @@ Deno.test("OramaSyncInterceptor: addQuad and removeQuad are idempotent", async (
   });
   assertEquals(foundId, null, "Triple should not exist after multiple removes");
 });
+
+// New integration-style tests to validate interceptor behavior with CustomN3Store
+
+async function waitForTriple(
+  orama: ReturnType<typeof createOramaTripleStore>,
+  triple: { subject: string; predicate: string; object: string },
+  timeoutMs = 1000,
+  intervalMs = 20,
+): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const id = await findTriple(orama, triple);
+    if (id) return true;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return false;
+}
+
+Deno.test(
+  "OramaSyncInterceptor: syncs all triples when inserting Turtle via CustomN3Store",
+  async () => {
+    const orama = createOramaTripleStore();
+    const interceptor = new OramaSyncInterceptor(orama);
+    const store = new CustomN3Store([interceptor]);
+
+    const turtle = `
+      @prefix ex: <http://example.org/> .
+      @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+      ex:earth rdf:type ex:Planet ;
+               ex:name "Earth" .
+      ex:moon rdf:type ex:NaturalSatellite ;
+              ex:name "Moon" ;
+              ex:orbits ex:earth .
+    `;
+
+    insertTurtle(store, turtle);
+
+    const expectedTriples = [
+      {
+        subject: "http://example.org/earth",
+        predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+        object: "http://example.org/Planet",
+      },
+      {
+        subject: "http://example.org/earth",
+        predicate: "http://example.org/name",
+        object: "Earth",
+      },
+      {
+        subject: "http://example.org/moon",
+        predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+        object: "http://example.org/NaturalSatellite",
+      },
+      {
+        subject: "http://example.org/moon",
+        predicate: "http://example.org/name",
+        object: "Moon",
+      },
+      {
+        subject: "http://example.org/moon",
+        predicate: "http://example.org/orbits",
+        object: "http://example.org/earth",
+      },
+    ];
+
+    for (const triple of expectedTriples) {
+      const ok = await waitForTriple(orama, triple, 1500, 25);
+      assertEquals(ok, true, `Triple should sync: ${JSON.stringify(triple)}`);
+    }
+  },
+);
+
+Deno.test(
+  "OramaSyncInterceptor: rapid adds via CustomN3Store still sync to Orama",
+  async () => {
+    const orama = createOramaTripleStore();
+    const interceptor = new OramaSyncInterceptor(orama);
+    const store = new CustomN3Store([interceptor]);
+
+    const subjects = Array.from({ length: 50 }).map((_, i) =>
+      `http://example.org/s${i}`
+    );
+    for (const s of subjects) {
+      const quad = DataFactory.quad(
+        DataFactory.namedNode(s),
+        DataFactory.namedNode("http://example.org/p"),
+        DataFactory.literal("v"),
+        DataFactory.defaultGraph(),
+      );
+      // Use the store so the interceptor is triggered synchronously per add
+      store.addQuad(quad);
+    }
+
+    // Verify a few sampled triples arrive within a bounded time window
+    for (const s of [subjects[0], subjects[25], subjects[49]]) {
+      const ok = await waitForTriple(
+        orama,
+        {
+          subject: s,
+          predicate: "http://example.org/p",
+          object: "v",
+        },
+        1500,
+        25,
+      );
+      assertEquals(ok, true, `Triple should sync for subject ${s}`);
+    }
+  },
+);

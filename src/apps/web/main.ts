@@ -6,6 +6,9 @@ import { TurtleGenerator } from "src/kg/generator/generator.ts";
 import { EntityLinker } from "src/kg/linker/entity-linker.ts";
 import { GreedyDisambiguator } from "src/kg/linker/disambiguator/greedy/disambiguator.ts";
 import { OramaSearchService } from "src/search/orama/search.ts";
+import { OramaSyncInterceptor } from "src/n3store/interceptors/orama-sync-interceptor.ts";
+import { removeN3StoreFromKv } from "src/n3store/persist/kv.ts";
+import { removeOramaFromKv } from "src/orama/persist/kv.ts";
 import { createDenoKvPersistedOramaTripleStore } from "src/orama/persist/kv.ts";
 import { createDenoKvPersistedN3Store } from "src/n3store/persist/kv.ts";
 import { exportTurtle, insertTurtle } from "src/n3store/turtle.ts";
@@ -50,6 +53,33 @@ export default {
             turtle,
             { headers: { "Content-Type": "text/turtle" } },
           );
+        },
+      },
+      {
+        method: "DELETE",
+        pattern: new URLPattern({ pathname: "/api/v1/graphs/:id" }),
+        handler: async (_request: Request, params?: URLPatternResult) => {
+          const id = params?.pathname.groups.id;
+          if (!id) {
+            return Response.json({ message: "Not found" }, { status: 404 });
+          }
+
+          try {
+            await Promise.all([
+              removeN3StoreFromKv(kv, kvKeyTurtle(id)),
+              removeOramaFromKv(kv, kvKeyOrama(id)),
+            ]);
+            return new Response(null, { status: 204 });
+          } catch (error) {
+            return Response.json(
+              {
+                message: error instanceof Error
+                  ? error.message
+                  : "Failed to delete conversation graph",
+              },
+              { status: 500 },
+            );
+          }
         },
       },
       {
@@ -131,7 +161,6 @@ export async function* ingest(
   let eventId = 0;
 
   try {
-    // Send connection confirmation
     yield {
       event: "connected",
       data: "Connected to generation stream",
@@ -148,6 +177,9 @@ export async function* ingest(
       await createDenoKvPersistedN3Store(kv, kvKeyTurtle(id));
     const { orama, persist: persistOrama } =
       await createDenoKvPersistedOramaTripleStore(kv, kvKeyOrama(id));
+
+    // Ensure Orama stays in sync with N3 using an interceptor.
+    n3Store.addInterceptor(new OramaSyncInterceptor(orama));
 
     yield {
       event: "progress",
@@ -177,6 +209,7 @@ export async function* ingest(
       id: eventId++,
     };
 
+    // Insert generated triples into the N3 store; interceptor will mirror to Orama.
     await insertTurtle(n3Store, generatedTurtle);
     await persistN3Store();
     await persistOrama();

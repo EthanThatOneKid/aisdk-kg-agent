@@ -323,11 +323,11 @@
           const messages = Array.from(chatMessages.children).map(
             (msgEl) => {
               // Find the message content using the .message-content class
-              const messageContent = msgEl.querySelector(
-                ".message-content",
+              const messageText = msgEl.querySelector(
+                ".message-content .message-text",
               );
-              const content = messageContent
-                ? messageContent.textContent
+              const content = messageText
+                ? messageText.textContent
                 : "";
 
               return {
@@ -467,12 +467,31 @@
                   : "hover:bg-gray-100 text-gray-700"
               }`;
 
-            convElement.innerHTML = `
+            const row = document.createElement("div");
+            row.className = "flex items-center justify-between gap-2";
+
+            const info = document.createElement("div");
+            info.className = "flex-1 min-w-0";
+            info.innerHTML = `
               <div class="font-medium truncate">${conv.title}</div>
               <div class="text-xs text-gray-500">${
               new Date(conv.timestamp).toLocaleString()
-            }</div>
-            `;
+            }</div>`;
+
+            const delBtn = document.createElement("button");
+            delBtn.className = "text-red-500 hover:text-red-600 p-1";
+            delBtn.title = "Delete conversation";
+            delBtn.setAttribute("aria-label", "Delete conversation");
+            delBtn.textContent = "🗑️";
+
+            delBtn.addEventListener("click", async (e) => {
+              e.stopPropagation();
+              await deleteConversation(conv.id);
+            });
+
+            row.appendChild(info);
+            row.appendChild(delBtn);
+            convElement.appendChild(row);
 
             convElement.addEventListener("click", () => {
               if (!isActive) {
@@ -483,6 +502,48 @@
 
             conversationList.appendChild(convElement);
           });
+        }
+
+        async function deleteConversation(id) {
+          // Optimistic UI: remove from local list
+          conversationHistory = conversationHistory.filter((c) =>
+            c.id !== id
+          );
+          saveConversationHistory();
+          updateConversationHistoryUI();
+
+          // If deleting the active conversation, switch to the next available or create new
+          if (id === conversationId) {
+            const next = conversationHistory[0]?.id;
+            if (next) {
+              switchToConversation(next);
+            } else {
+              createNewConversation();
+            }
+          }
+
+          // Remove local conversation data
+          localStorage.removeItem(`conversation_${id}`);
+
+          // Call backend to delete KV graphs
+          try {
+            const resp = await fetch(
+              `/api/v1/graphs/${encodeURIComponent(id)}`,
+              {
+                method: "DELETE",
+              },
+            );
+            if (!resp.ok && resp.status !== 204) {
+              console.error(
+                "Failed to delete conversation graph:",
+                resp.status,
+              );
+              showMessage("Failed to delete conversation graph.");
+            }
+          } catch (err) {
+            console.error("Delete error:", err);
+            showMessage("Delete error. Please try again.");
+          }
         }
 
         function sendMessage() {
@@ -527,6 +588,19 @@
             true,
           );
 
+          // Track elapsed time during generation
+          const generationStart = Date.now();
+          let progressNote = "";
+          let elapsedTimer = setInterval(() => {
+            const elapsedMs = Date.now() - generationStart;
+            const elapsedText = formatElapsed(elapsedMs);
+            updateLastMessage(
+              `Generating knowledge graph... ${elapsedText}${
+                progressNote ? ` — ${progressNote}` : ""
+              }`,
+            );
+          }, 1000);
+
           // Create SSE connection
           const url = new URL(
             `/api/v1/graphs/${encodeURIComponent(conversationId)}/sse`,
@@ -542,14 +616,21 @@
 
           eventSource.addEventListener("progress", (event) => {
             updateStatus("Generating...", "text-yellow-500");
+            progressNote = event.data || "";
+            const elapsedText = formatElapsed(
+              Date.now() - generationStart,
+            );
             updateLastMessage(
-              `Generating knowledge graph... (${event.data})`,
+              `Generating knowledge graph... ${elapsedText}${
+                progressNote ? ` — ${progressNote}` : ""
+              }`,
             );
           });
 
           eventSource.addEventListener("result", (event) => {
             updateStatus("Rendering...", "text-purple-500");
             updateLastMessage("Graph generated, rendering...");
+            clearInterval(elapsedTimer);
 
             try {
               const elements = parseTurtle(event.data);
@@ -583,6 +664,7 @@
             eventSource.close();
             eventSource = null;
             setGenerating(false);
+            clearInterval(elapsedTimer);
           });
 
           eventSource.addEventListener("error", (event) => {
@@ -592,6 +674,7 @@
             eventSource.close();
             eventSource = null;
             setGenerating(false);
+            clearInterval(elapsedTimer);
           });
 
           eventSource.onerror = (error) => {
@@ -604,6 +687,7 @@
               eventSource = null;
             }
             setGenerating(false);
+            clearInterval(elapsedTimer);
           };
         }
 
@@ -617,7 +701,7 @@
 
           const messageContent = document.createElement("div");
           messageContent.className =
-            `message-content max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+            `message-content relative pr-12 max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
               sender === "user"
                 ? "bg-blue-600 text-white"
                 : isProgress
@@ -625,16 +709,23 @@
                 : "bg-gray-100 text-gray-800"
             }`;
 
-          messageContent.textContent = content;
-          messageDiv.appendChild(messageContent);
+          // Actual message text container to avoid saving timestamp
+          const textSpan = document.createElement("span");
+          textSpan.className = "message-text";
+          textSpan.textContent = content;
+          messageContent.appendChild(textSpan);
 
-          // Add timestamp
-          const timestamp = document.createElement("div");
-          timestamp.className = `text-xs text-gray-500 mt-1 ${
-            sender === "user" ? "text-right" : "text-left"
-          }`;
-          timestamp.textContent = new Date().toLocaleTimeString();
-          messageDiv.appendChild(timestamp);
+          // Timestamp positioned elegantly inside the bubble (top-right)
+          const ts = document.createElement("span");
+          ts.className =
+            `message-timestamp absolute right-2 top-1 text-[10px] ${
+              sender === "user"
+                ? "text-blue-100 opacity-80"
+                : "text-gray-500 opacity-75"
+            }`;
+          ts.textContent = new Date().toLocaleTimeString();
+          messageContent.appendChild(ts);
+          messageDiv.appendChild(messageContent);
 
           chatMessages.appendChild(messageDiv);
           chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -643,10 +734,10 @@
         }
 
         function updateLastMessage(content) {
-          const lastMessage = chatMessages.lastElementChild
-            ?.querySelector(".message-content");
-          if (lastMessage) {
-            lastMessage.textContent = content;
+          const lastText = chatMessages.lastElementChild
+            ?.querySelector(".message-content .message-text");
+          if (lastText) {
+            lastText.textContent = content;
           }
         }
 
@@ -668,6 +759,15 @@
           }
           document.getElementById("cy").innerHTML =
             `<div class="flex items-center justify-center h-full text-gray-500">${message}</div>`;
+        }
+
+        function formatElapsed(ms) {
+          const sec = Math.floor(ms / 1000) % 60;
+          const min = Math.floor(ms / 60000);
+          const parts = [];
+          if (min > 0) parts.push(`${min}m`);
+          parts.push(`${sec}s`);
+          return parts.join(" ");
         }
 
         // Cleanup on page unload

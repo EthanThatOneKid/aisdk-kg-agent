@@ -67,7 +67,7 @@ if (import.meta.main) {
       ? new GreedyDisambiguator(() => genid(crypto.randomUUID()))
       : new PromptDisambiguationService(() => genid(crypto.randomUUID()));
 
-    // Create an interceptor to sync N3 store changes with Orama store.
+    // Keep Orama in sync with N3 using an interceptor.
     const oramaSyncInterceptor = new OramaSyncInterceptor(orama);
     n3Store.addInterceptor(oramaSyncInterceptor);
 
@@ -98,7 +98,7 @@ if (import.meta.main) {
         verbose: config.verbose,
       });
 
-      // Add the generated Turtle to the N3 store for persistence.
+      // Add the generated Turtle to the N3 store; interceptor mirrors to Orama.
       insertTurtle(n3Store, result);
 
       // Save the N3 store to db.ttl for persistence.
