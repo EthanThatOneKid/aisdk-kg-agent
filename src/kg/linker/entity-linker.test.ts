@@ -5,7 +5,7 @@ import {
   createOramaTripleStore,
   insertTriple,
 } from "src/orama/triple-store.ts";
-import { GreedyDisambiguator } from "./disambiguator/greedy/disambiguator.ts";
+import { GreedyDisambiguator } from "src/kg/disambiguator/greedy/disambiguator.ts";
 import { EntityLinker } from "./entity-linker.ts";
 
 Deno.test("EntityLinker - constructor", () => {

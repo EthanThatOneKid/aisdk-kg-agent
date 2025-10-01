@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { GeneratedTurtleVariable } from "src/kg/generator/generate.ts";
 import { generatedTurtleVariableSchema } from "src/kg/generator/generate.ts";
-import type { Disambiguator } from "src/kg/linker/disambiguator/disambiguator.ts";
+import type { Disambiguator } from "src/kg/disambiguator/disambiguator.ts";
 import type { SearchService } from "src/search/search.ts";
 
 /**
@@ -20,7 +20,7 @@ export const linkedEntitySchema = z.object({
 export class EntityLinker {
   public constructor(
     private readonly search: SearchService,
-    private readonly disambiguation: Disambiguator,
+    private readonly disambiguator: Disambiguator,
   ) {}
 
   public async linkEntities(
@@ -36,7 +36,7 @@ export class EntityLinker {
     entity: GeneratedTurtleVariable,
   ): Promise<string> {
     const response = await this.search.search(entity);
-    return await this.disambiguation.disambiguate(response);
+    return await this.disambiguator.disambiguate(response);
   }
 
   public static toMap(links: LinkedEntity[]): Map<string, string> {

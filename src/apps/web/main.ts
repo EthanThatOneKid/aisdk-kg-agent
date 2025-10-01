@@ -4,7 +4,7 @@ import { ServerSentEventStream } from "@std/http/server-sent-event-stream";
 import { google } from "@ai-sdk/google";
 import { TurtleGenerator } from "src/kg/generator/generator.ts";
 import { EntityLinker } from "src/kg/linker/entity-linker.ts";
-import { GreedyDisambiguator } from "src/kg/linker/disambiguator/greedy/disambiguator.ts";
+import { GreedyDisambiguator } from "src/kg/disambiguator/greedy/disambiguator.ts";
 import { OramaSearchService } from "src/search/orama/search.ts";
 import { OramaSyncInterceptor } from "src/n3store/interceptors/orama-sync-interceptor.ts";
 import { removeN3StoreFromKv } from "src/n3store/persist/kv.ts";

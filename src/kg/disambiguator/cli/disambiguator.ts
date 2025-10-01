@@ -1,5 +1,5 @@
 import { promptSelect } from "@std/cli/unstable-prompt-select";
-import type { Disambiguator } from "src/kg/linker/disambiguator/disambiguator.ts";
+import type { Disambiguator } from "src/kg/disambiguator/disambiguator.ts";
 import type { SearchResponse } from "src/search/search.ts";
 
 /**

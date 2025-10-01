@@ -1,8 +1,8 @@
 import { google } from "@ai-sdk/google";
 import { TurtleGenerator } from "src/kg/generator/generator.ts";
 import { EntityLinker } from "src/kg/linker/entity-linker.ts";
-import { GreedyDisambiguator } from "src/kg/linker/disambiguator/greedy/disambiguator.ts";
-import { PromptDisambiguationService } from "src/kg/linker/disambiguator/cli/disambiguator.ts";
+import { GreedyDisambiguator } from "src/kg/disambiguator/greedy/disambiguator.ts";
+import { PromptDisambiguationService } from "src/kg/disambiguator/cli/disambiguator.ts";
 import { OramaSearchService } from "src/search/orama/search.ts";
 import {
   createDenoPersistedOramaTripleStore,

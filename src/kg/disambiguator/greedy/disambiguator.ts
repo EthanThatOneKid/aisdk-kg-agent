@@ -1,4 +1,4 @@
-import type { Disambiguator } from "src/kg/linker/disambiguator/disambiguator.ts";
+import type { Disambiguator } from "src/kg/disambiguator/disambiguator.ts";
 import type { SearchResponse } from "src/search/search.ts";
 
 /**
